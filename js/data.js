@@ -4,11 +4,16 @@
  *
  * Quiz shape:
  *   { id, settings: { title, seconds, points, questionsPerContestant,
- *                     obstacleSeconds, obstacleRowPoints, keywordPoints[5] },
+ *                     obstacleSeconds, obstacleRowPoints, keywordPoints[5],
+ *                     accelSeconds[4], accelPoints[4] },
  *     contestants: [ { name, questions: [ { question, answer, image } ] } ],
  *     obstacle: null | { keyword, image, rows: [4 × { question, answer, boxes }],
- *                        center: { question, answer, boxes } } }
+ *                        center: { question, answer, boxes } },
+ *     accel: null | { questions: [4 × { question, answer, media, seconds }] } }
  * `image` is '' | a path relative to index.html | a URL | a data: URL.
+ * `media` is an image like `image`, or a video: a path / URL to .mp4/.webm, or
+ * 'idb:<id>' for a video picked in the editor (stored apart in IndexedDB, see storage.js).
+ * `seconds` (null = use settings.accelSeconds) overrides one question's time.
  * `boxes` optionally overrides which letters the board shows for an answer.
  */
 (function (root) {
@@ -22,12 +27,15 @@
     obstacleSeconds: [5, 300],
     obstacleRowPoints: [1, 1000],
     keywordPoint: [0, 1000],
+    accelSecond: [5, 300],
+    accelPoint: [0, 1000],
   };
 
   const OBSTACLE_ROWS = 4;
   // Keyword value by how far the round has gone: before row 1, after 1–4 rows. Once the center
   // question is scored nobody can guess any more; the teacher just opens the keyword.
   const KEYWORD_STAGES = ['Trước hàng 1', 'Sau 1 hàng', 'Sau 2 hàng', 'Sau 3 hàng', 'Sau 4 hàng'];
+  const ACCEL_QUESTIONS = 4;
 
   const DEFAULT_SETTINGS = {
     title: 'Thử thách tri thức',
@@ -37,6 +45,8 @@
     obstacleSeconds: 15,
     obstacleRowPoints: 10,
     keywordPoints: [70, 60, 50, 40, 30],
+    accelSeconds: [10, 20, 30, 40], // question 1–4
+    accelPoints: [40, 30, 20, 10], // fastest correct, 2nd, 3rd, 4th
   };
 
   const HEADERS = ['Thí sinh', 'Câu', 'Câu hỏi', 'Đáp án', 'Hình ảnh (tùy chọn)'];
@@ -49,9 +59,13 @@
     obstacleSeconds: 'Số giây mỗi hàng ngang',
     obstacleRowPoints: 'Điểm mỗi hàng ngang',
     keywordPoints: 'Điểm từ khóa',
+    accelSeconds: 'Số giây vòng Tăng tốc',
+    accelPoints: 'Điểm vòng Tăng tốc',
   };
   const OBSTACLE_SHEET = 'Vượt chướng ngại vật';
   const OBSTACLE_HEADERS = ['Mục', 'Câu hỏi', 'Đáp án', 'Hình ảnh', 'Ô chữ (tùy chọn)'];
+  const ACCEL_SHEET = 'Tăng tốc';
+  const ACCEL_HEADERS = ['Câu', 'Câu hỏi', 'Đáp án', 'Hình ảnh/Video', 'Thời gian'];
 
   // Header / setting names are matched after stripping diacritics, case and
   // punctuation, so "Đáp án", "dap an" and "ĐÁP ÁN" all work.
@@ -70,6 +84,8 @@
     obstacleSeconds: ['sogiaymoihangngang', 'sogiayhangngang', 'thoigianhangngang', 'thoigianmoihangngang'],
     obstacleRowPoints: ['diemmoihangngang', 'diemhangngang'],
     keywordPoints: ['diemtukhoa', 'diemchuongngaivat', 'diemtukhoatheoluot'],
+    accelSeconds: ['sogiayvongtangtoc', 'sogiaytangtoc', 'thoigiantangtoc', 'thoigianvongtangtoc'],
+    accelPoints: ['diemvongtangtoc', 'diemtangtoc'],
   };
   const OBSTACLE_COLUMNS = {
     item: ['muc', 'loai', 'phan', 'vitri', 'item'],
@@ -77,6 +93,13 @@
     answer: COLUMN_ALIASES.answer,
     image: COLUMN_ALIASES.image,
     boxes: ['ochu', 'ochutuychon', 'ochuhienthi', 'hienthi', 'boxes'],
+  };
+  const ACCEL_COLUMNS = {
+    num: COLUMN_ALIASES.num,
+    question: COLUMN_ALIASES.question,
+    answer: COLUMN_ALIASES.answer,
+    media: COLUMN_ALIASES.image.concat(['hinhanhvideo', 'hinhanhhoacvideo', 'anhvideo', 'video', 'media', 'tep']),
+    seconds: ['thoigian', 'thoigiangiay', 'sogiay', 'giay', 'time', 'seconds'],
   };
 
   const SAMPLE = {
@@ -130,6 +153,12 @@
       ],
       center: ['Vào ban đêm, người đi biển xưa thường nhìn vào thứ gì trên bầu trời (như sao Bắc Cực) để định hướng?', 'Ngôi sao'],
     },
+    accel: [
+      ['Số nguyên tố chẵn duy nhất là số nào?', 'Số 2'],
+      ['Đồng hồ trong hình đang chỉ mấy giờ?', '3 giờ', 'images/vi-du-dong-ho.svg'],
+      ['Sắp xếp các hành tinh sau theo thứ tự từ gần đến xa Mặt Trời: Sao Hỏa, Sao Kim, Trái Đất, Sao Thủy.', 'Sao Thủy, Sao Kim, Trái Đất, Sao Hỏa'],
+      ['Tìm số tiếp theo của dãy số: 1, 1, 2, 3, 5, 8, 13, …', '21'],
+    ],
   };
 
   function newId() {
@@ -155,15 +184,24 @@
     return { keyword: o.keyword, image: o.image, rows: o.rows.map(item), center: item(o.center) };
   }
 
+  function sampleAccel() {
+    return { questions: SAMPLE.accel.map(([question, answer, media]) => ({ question, answer, media: media || '', seconds: null })) };
+  }
+
+  function copySettings(st) {
+    return { ...st, keywordPoints: st.keywordPoints.slice(), accelSeconds: st.accelSeconds.slice(), accelPoints: st.accelPoints.slice() };
+  }
+
   function sampleQuiz() {
     return {
       id: newId(),
-      settings: { ...SAMPLE.settings, keywordPoints: SAMPLE.settings.keywordPoints.slice() },
+      settings: copySettings(SAMPLE.settings),
       contestants: SAMPLE.contestants.map((c) => ({
         name: c.name,
         questions: c.questions.map(([question, answer, image]) => ({ question, answer, image: image || '' })),
       })),
       obstacle: sampleObstacle(),
+      accel: sampleAccel(),
     };
   }
 
@@ -174,6 +212,21 @@
   function emptyObstacle() {
     const item = () => ({ question: '', answer: '', boxes: '' });
     return { keyword: '', image: '', rows: Array.from({ length: OBSTACLE_ROWS }, item), center: item() };
+  }
+
+  function emptyAccelQuestion() {
+    return { question: '', answer: '', media: '', seconds: null };
+  }
+
+  function emptyAccel() {
+    return { questions: Array.from({ length: ACCEL_QUESTIONS }, emptyAccelQuestion) };
+  }
+
+  /** 'video' | 'image' | '' — decided by the source, since a path doesn't say more. */
+  function mediaKind(src) {
+    if (!src) return '';
+    if (src.startsWith('idb:') || src.startsWith('data:video/')) return 'video';
+    return /\.(mp4|m4v|webm|ogv|mov)([?#]|$)/i.test(src) ? 'video' : 'image';
   }
 
   /**
@@ -200,16 +253,22 @@
     return words.reduce((n, w) => n + w.length, 0);
   }
 
-  function parseKeywordPoints(value, errors) {
+  /** "70, 60; 50" → [70, 60, 50]: exactly as many numbers as the default has, each clamped. */
+  function parseNumberList(field, limits, value, errors, extraAllowed = 0) {
+    const def = DEFAULT_SETTINGS[field];
     if (Array.isArray(value)) value = value.join(',');
     let nums = String(value).split(/[^\d]+/).filter(Boolean).map(Number);
-    // Older files had a 6th value ("after the center question"); it no longer applies.
-    if (nums.length === KEYWORD_STAGES.length + 1) nums = nums.slice(0, KEYWORD_STAGES.length);
-    if (nums.length !== KEYWORD_STAGES.length) {
-      errors.push(`"${SETTINGS_LABELS.keywordPoints}" cần đúng ${KEYWORD_STAGES.length} số, ví dụ "70, 60, 50, 40, 30".`);
-      return DEFAULT_SETTINGS.keywordPoints.slice();
+    if (nums.length > def.length && nums.length <= def.length + extraAllowed) nums = nums.slice(0, def.length);
+    if (nums.length !== def.length) {
+      errors.push(`"${SETTINGS_LABELS[field]}" cần đúng ${def.length} số, ví dụ "${def.join(', ')}".`);
+      return def.slice();
     }
-    return nums.map((n) => Math.min(LIMITS.keywordPoint[1], Math.max(LIMITS.keywordPoint[0], n)));
+    return nums.map((n) => Math.min(limits[1], Math.max(limits[0], n)));
+  }
+
+  function parseKeywordPoints(value, errors) {
+    // Older files had a 6th value ("after the center question"); it no longer applies.
+    return parseNumberList('keywordPoints', LIMITS.keywordPoint, value, errors, 1);
   }
 
   /** Fill in anything an older saved quiz is missing. */
@@ -219,8 +278,8 @@
     if (Array.isArray(st.keywordPoints) && st.keywordPoints.length === KEYWORD_STAGES.length + 1) {
       st.keywordPoints = st.keywordPoints.slice(0, KEYWORD_STAGES.length); // drop the old "after the center question" value
     }
-    if (!Array.isArray(st.keywordPoints) || st.keywordPoints.length !== KEYWORD_STAGES.length) {
-      st.keywordPoints = DEFAULT_SETTINGS.keywordPoints.slice();
+    for (const field of ['keywordPoints', 'accelSeconds', 'accelPoints']) {
+      if (!Array.isArray(st[field]) || st[field].length !== DEFAULT_SETTINGS[field].length) st[field] = DEFAULT_SETTINGS[field].slice();
     }
     quiz.settings = st;
     if (quiz.obstacle) {
@@ -236,6 +295,17 @@
     } else {
       quiz.obstacle = null;
     }
+    quiz.accel =
+      quiz.accel && Array.isArray(quiz.accel.questions)
+        ? {
+            questions: quiz.accel.questions.map((x) => ({
+              question: (x && x.question) || '',
+              answer: (x && x.answer) || '',
+              media: (x && x.media) || '',
+              seconds: (x && x.seconds) || null,
+            })),
+          }
+        : null;
     return quiz;
   }
 
@@ -345,9 +415,12 @@
         obstacleSeconds: setting('obstacleSeconds'),
         obstacleRowPoints: setting('obstacleRowPoints'),
         keywordPoints: s.keywordPoints != null ? parseKeywordPoints(s.keywordPoints, errors) : DEFAULT_SETTINGS.keywordPoints.slice(),
+        accelSeconds: s.accelSeconds != null ? parseNumberList('accelSeconds', LIMITS.accelSecond, s.accelSeconds, errors) : DEFAULT_SETTINGS.accelSeconds.slice(),
+        accelPoints: s.accelPoints != null ? parseNumberList('accelPoints', LIMITS.accelPoint, s.accelPoints, errors) : DEFAULT_SETTINGS.accelPoints.slice(),
       },
       contestants,
       obstacle: null,
+      accel: null,
     };
     const parts = validateParts(quiz, { skipEmptyText: true });
     return { quiz, errors: errors.concat(parts.common, parts.warmup), warnings };
@@ -404,9 +477,49 @@
     return { obstacle: any ? ob : null, errors };
   }
 
+  /** The "Tăng tốc" sheet → { accel | null, errors }. */
+  function parseAccelRows(rows) {
+    const errors = [];
+    let headerRow = -1;
+    const cols = {};
+    for (let r = 0; r < Math.min(rows.length, 15) && headerRow < 0; r++) {
+      const found = {};
+      rows[r].forEach((v, i) => {
+        const n = norm(v);
+        for (const [field, aliases] of Object.entries(ACCEL_COLUMNS)) {
+          if (found[field] == null && aliases.includes(n)) found[field] = i;
+        }
+      });
+      if (found.question != null && found.answer != null) {
+        headerRow = r;
+        Object.assign(cols, found);
+      }
+    }
+    if (headerRow < 0) {
+      const empty = rows.every((row) => row.every((v) => cell(v) === ''));
+      return { accel: null, errors: empty ? [] : [`Trang "${ACCEL_SHEET}" cần các cột "Câu hỏi" và "Đáp án" (xem tệp mẫu).`] };
+    }
+    const qs = [];
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const get = (f) => (cols[f] == null ? '' : cell(rows[r][cols[f]]));
+      const item = { question: get('question'), answer: get('answer'), media: get('media'), seconds: null };
+      const rawSeconds = get('seconds');
+      if (!item.question && !item.answer && !item.media && !rawSeconds) continue;
+      if (rawSeconds) {
+        item.seconds = clampInt(rawSeconds, LIMITS.accelSecond, null);
+        if (item.seconds == null) errors.push(`Trang "${ACCEL_SHEET}", dòng ${r + 1}: "Thời gian" phải là số giây, ví dụ 20.`);
+      }
+      qs.push({ ...item, num: parseFloat(get('num')) });
+    }
+    if (!qs.length) return { accel: null, errors };
+    // Respect the "Câu" column if every row has a number; otherwise keep row order.
+    const ordered = qs.every((q) => Number.isFinite(q.num)) ? qs.slice().sort((a, b) => a.num - b.num) : qs;
+    return { accel: { questions: ordered.map(({ num, ...q }) => q) }, errors };
+  }
+
   /**
    * Checks split by where they matter: `common` (contestants) blocks every round,
-   * `warmup` / `obstacle` only block starting that round.
+   * `warmup` / `obstacle` / `accel` only block starting that round.
    */
   function validateParts(quiz, opts = {}) {
     const common = [];
@@ -432,7 +545,12 @@
         });
       }
     });
-    return { common, warmup, obstacle: quiz.obstacle ? validateObstacle(quiz.obstacle) : [] };
+    return {
+      common,
+      warmup,
+      obstacle: quiz.obstacle ? validateObstacle(quiz.obstacle) : [],
+      accel: quiz.accel ? validateAccel(quiz.accel) : [],
+    };
   }
 
   function validateObstacle(ob) {
@@ -448,17 +566,30 @@
     return errors;
   }
 
-  /** Errors that block starting `round` ('warmup' | 'obstacle'). */
+  function validateAccel(acc) {
+    const errors = [];
+    if (acc.questions.length !== ACCEL_QUESTIONS) {
+      errors.push(`Vòng Tăng tốc cần đúng ${ACCEL_QUESTIONS} câu (hiện có ${acc.questions.length}).`);
+    }
+    acc.questions.forEach((q, i) => {
+      if (!q.question.trim()) errors.push(`Tăng tốc, câu ${i + 1}: chưa có câu hỏi.`);
+      if (!q.answer.trim()) errors.push(`Tăng tốc, câu ${i + 1}: chưa có đáp án.`);
+    });
+    return errors;
+  }
+
+  /** Errors that block starting `round` ('warmup' | 'obstacle' | 'accel'). */
   function roundErrors(quiz, round) {
     const p = validateParts(quiz);
     if (round === 'obstacle' && !quiz.obstacle) return p.common.concat(['Bộ câu hỏi chưa có vòng Vượt chướng ngại vật.']);
+    if (round === 'accel' && !quiz.accel) return p.common.concat(['Bộ câu hỏi chưa có vòng Tăng tốc.']);
     return p.common.concat(p[round]);
   }
 
   /** All errors (every round present in the quiz). */
   function validate(quiz, opts = {}) {
     const p = validateParts(quiz, opts);
-    return p.common.concat(p.warmup, p.obstacle);
+    return p.common.concat(p.warmup, p.obstacle, p.accel);
   }
 
   function sheetRows(ws) {
@@ -469,7 +600,8 @@
     const names = wb.SheetNames;
     const settingsName = names.find((n) => ['caidat', 'settings'].includes(norm(n)));
     const obstacleName = names.find((n) => ['vuotchuongngaivat', 'vcnv', 'obstacle', 'chuongngaivat'].includes(norm(n)));
-    const skip = (n) => n === settingsName || n === obstacleName;
+    const accelName = names.find((n) => ['tangtoc', 'vongtangtoc', 'accel', 'acceleration'].includes(norm(n)));
+    const skip = (n) => n === settingsName || n === obstacleName || n === accelName;
     const questionName = names.find((n) => !skip(n) && findColumns(sheetRows(wb.Sheets[n]))) || names.find((n) => !skip(n)) || names[0];
     const settingsRows = settingsName ? sheetRows(wb.Sheets[settingsName]) : [];
     const result = parseRows(sheetRows(wb.Sheets[questionName]), settingsRows);
@@ -477,6 +609,11 @@
       const ob = parseObstacleRows(sheetRows(wb.Sheets[obstacleName]));
       result.quiz.obstacle = ob.obstacle;
       result.errors = result.errors.concat(ob.errors, ob.obstacle ? validateObstacle(ob.obstacle) : []);
+    }
+    if (result.quiz && accelName) {
+      const ac = parseAccelRows(sheetRows(wb.Sheets[accelName]));
+      result.quiz.accel = ac.accel;
+      result.errors = result.errors.concat(ac.errors, ac.accel ? validateAccel(ac.accel) : []);
     }
     return result;
   }
@@ -519,13 +656,18 @@
     return rows;
   }
 
-  const exportImage = (image) => (image && !image.startsWith('data:') ? image : '');
+  // Images and videos picked in the editor live only in this browser.
+  const exportImage = (image) => (image && !image.startsWith('data:') && !image.startsWith('idb:') ? image : '');
 
   function obstacleRows(ob) {
     const rows = [OBSTACLE_HEADERS, ['Từ khóa', '', ob.keyword, exportImage(ob.image), '']];
     ob.rows.forEach((r, i) => rows.push([`Hàng ${i + 1}`, r.question, r.answer, '', r.boxes]));
     rows.push(['Trung tâm', ob.center.question, ob.center.answer, '', ob.center.boxes]);
     return rows;
+  }
+
+  function accelRows(acc) {
+    return [ACCEL_HEADERS].concat(acc.questions.map((q, i) => [i + 1, q.question, q.answer, exportImage(q.media), q.seconds || '']));
   }
 
   function buildWorkbook(quiz) {
@@ -539,6 +681,11 @@
       ob['!cols'] = [{ wch: 12 }, { wch: 60 }, { wch: 24 }, { wch: 28 }, { wch: 18 }];
       X.utils.book_append_sheet(wb, ob, OBSTACLE_SHEET);
     }
+    if (quiz.accel) {
+      const ac = X.utils.aoa_to_sheet(accelRows(quiz.accel));
+      ac['!cols'] = [{ wch: 6 }, { wch: 60 }, { wch: 30 }, { wch: 28 }, { wch: 10 }];
+      X.utils.book_append_sheet(wb, ac, ACCEL_SHEET);
+    }
     const st = quiz.settings;
     const settings = X.utils.aoa_to_sheet([
       ['Cài đặt', 'Giá trị', 'Ghi chú'],
@@ -549,6 +696,8 @@
       [SETTINGS_LABELS.obstacleSeconds, st.obstacleSeconds, 'Vòng Vượt chướng ngại vật'],
       [SETTINGS_LABELS.obstacleRowPoints, st.obstacleRowPoints, 'Mỗi thí sinh trả lời đúng một hàng ngang được cộng'],
       [SETTINGS_LABELS.keywordPoints, st.keywordPoints.join(', '), 'Lần lượt: ' + KEYWORD_STAGES.join(', ').toLowerCase()],
+      [SETTINGS_LABELS.accelSeconds, st.accelSeconds.join(', '), 'Vòng Tăng tốc · câu 1, 2, 3, 4 (cột "Thời gian" của từng câu được ưu tiên)'],
+      [SETTINGS_LABELS.accelPoints, st.accelPoints.join(', '), 'Vòng Tăng tốc · người đúng nhanh nhất, nhì, ba, tư'],
     ]);
     settings['!cols'] = [{ wch: 24 }, { wch: 24 }, { wch: 70 }];
     X.utils.book_append_sheet(wb, settings, SETTINGS_SHEET);
@@ -570,19 +719,26 @@
     DEFAULT_SETTINGS,
     HEADERS,
     KEYWORD_STAGES,
+    ACCEL_QUESTIONS,
     newId,
     sampleQuiz,
     sampleObstacle,
+    sampleAccel,
     emptyQuestion,
     emptyObstacle,
+    emptyAccel,
+    emptyAccelQuestion,
+    mediaKind,
     normalizeQuiz,
     letterize,
     boxWords,
     letterCount,
     parseKeywordPoints,
+    parseNumberList,
     clampInt,
     parseRows,
     parseObstacleRows,
+    parseAccelRows,
     parseWorkbook,
     parseCsvText,
     parseFile,
@@ -590,9 +746,11 @@
     validate,
     validateParts,
     validateObstacle,
+    validateAccel,
     roundErrors,
     questionRows,
     obstacleRows,
+    accelRows,
     buildWorkbook,
     toCsv,
   };

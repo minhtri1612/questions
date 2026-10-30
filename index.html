@@ -32,6 +32,7 @@
           <button id="btn-resume" class="btn btn-primary btn-lg"></button>
           <button id="btn-round1" class="btn btn-ghost btn-lg"></button>
           <button id="btn-round2" class="btn btn-ghost btn-lg"></button>
+          <button id="btn-round3" class="btn btn-ghost btn-lg"></button>
           <button id="btn-edit-saved" class="btn btn-ghost btn-lg">Chỉnh sửa</button>
         </div>
       </div>
@@ -74,6 +75,7 @@
       <div class="tabs" role="tablist">
         <button id="tab-warmup" class="tab" role="tab" data-tab="warmup">Vòng 1 · Khởi động <span class="tab-badge" hidden></span></button>
         <button id="tab-obstacle" class="tab" role="tab" data-tab="obstacle">Vòng 2 · Vượt chướng ngại vật <span class="tab-badge" hidden></span></button>
+        <button id="tab-accel" class="tab" role="tab" data-tab="accel">Vòng 3 · Tăng tốc <span class="tab-badge" hidden></span></button>
       </div>
 
       <div id="ed-errors" class="panel errors" hidden></div>
@@ -106,7 +108,9 @@
       </div>
 
       <div id="ed-pane-obstacle" class="ed-pane" hidden></div>
+      <div id="ed-pane-accel" class="ed-pane" hidden></div>
       <input id="ed-image-input" type="file" accept="image/*" hidden>
+      <input id="ed-video-input" type="file" accept="video/mp4,video/webm,video/*" hidden>
     </div>
   </section>
 
@@ -273,6 +277,77 @@
     </footer>
   </section>
 
+  <!-- ============ ACCELERATION ROUND ============ -->
+  <section id="screen-accel" class="screen present accel" hidden>
+    <header class="scorebar">
+      <div id="ac-title" class="scorebar-title"></div>
+      <div id="ac-tiles" class="tiles"></div>
+    </header>
+    <main class="ac-stage">
+      <div class="ac-left">
+        <div id="ac-mode" class="mode-badge"></div>
+        <div id="ac-card" class="ac-card" hidden>
+          <div class="ac-card-head">
+            <div id="ac-card-label" class="ac-card-label"></div>
+            <div id="ac-card-meta" class="ac-card-meta"></div>
+          </div>
+          <div id="ac-media" class="ac-media" hidden>
+            <img id="ac-img" alt="" hidden>
+            <video id="ac-video" playsinline preload="auto" hidden></video>
+            <div id="ac-media-msg" class="ac-media-msg" hidden></div>
+          </div>
+          <div id="ac-q" class="q-text fit ac-q"></div>
+          <div id="ac-answer" class="ac-answer" hidden></div>
+        </div>
+      </div>
+      <aside class="ac-right">
+        <div id="ac-timer" class="timer">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+            <circle id="ac-timer-ring" class="timer-ring" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="timer-center">
+            <div id="ac-timer-num" class="timer-num">10</div>
+            <div id="ac-timer-label" class="timer-label">giây</div>
+          </div>
+        </div>
+        <div id="ac-dots" class="dots"></div>
+        <div id="ac-order-title" class="ac-order-title">Thứ tự giơ bảng</div>
+        <ol id="ac-order" class="ac-order"></ol>
+      </aside>
+      <div id="ac-intro" class="ob-intro" hidden>
+        <div class="intro">
+          <div class="intro-eyebrow">Vòng 3</div>
+          <div class="intro-name">Tăng tốc</div>
+          <div class="intro-meta" id="ac-intro-meta"></div>
+          <div class="intro-hint">Nhấn <kbd>Space</kbd> hoặc <kbd>→</kbd> để bắt đầu</div>
+        </div>
+      </div>
+    </main>
+    <footer class="controls">
+      <div class="row">
+        <button class="btn btn-ctl" data-ac="back" title="Quay lại kết quả vòng trước (←)">‹ Quay lại <kbd>←</kbd></button>
+      </div>
+      <div class="row">
+        <button class="btn btn-next" data-ac="start">Bắt đầu <kbd>Space</kbd></button>
+        <button class="btn btn-next" data-ac="clock" title="Bắt đầu tính giờ (Space)">Bắt đầu tính giờ <kbd>Space</kbd></button>
+        <button class="btn btn-next" data-ac="reveal" title="Hiện đáp án (Space)">Hiện đáp án <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-ac="fix" title="Sửa thứ tự giơ bảng (O)">Sửa thứ tự <kbd>O</kbd></button>
+        <button class="btn btn-correct" data-ac="confirm" title="Xác nhận chấm điểm (Enter)">✓ Xác nhận <kbd>Enter</kbd></button>
+        <button class="btn btn-next" data-ac="next">Câu tiếp › <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-ac="undo" title="Hoàn tác thao tác gần nhất (U)">↶ Hoàn tác <kbd>U</kbd></button>
+      </div>
+      <div class="row">
+        <button class="btn btn-icon" data-ac="replay" title="Xem lại video (V)"></button>
+        <button class="btn btn-icon" data-ac="pause" id="ac-btn-pause" title="Dừng / tiếp tục đồng hồ (T)"></button>
+        <button class="btn btn-icon" data-ac="reset" title="Đặt lại đồng hồ (R)"></button>
+        <button class="btn btn-icon" data-ac="mute" title="Bật / tắt âm thanh (M)" data-mute-btn></button>
+        <button class="btn btn-icon" data-ac="fullscreen" title="Toàn màn hình (F)"></button>
+        <button class="btn btn-icon" data-ac="help" title="Phím tắt (?)">?</button>
+        <button class="btn btn-icon" data-ac="exit" title="Về trang chủ">✕</button>
+      </div>
+    </footer>
+  </section>
   <!-- ============ RESULTS ============ -->
   <section id="screen-results" class="screen results" hidden>
     <div class="results-inner">
@@ -328,6 +403,17 @@
         <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>Dừng–tiếp tục / đặt lại đồng hồ</dd>
         <dt><kbd>F</kbd> / <kbd>M</kbd></dt><dd>Toàn màn hình / âm thanh</dd>
       </dl>
+      <dl class="keys" id="help-accel" hidden>
+        <dt><kbd>Space</kbd> <kbd>→</kbd></dt><dd>Bắt đầu tính giờ (sau video) · hiện đáp án · câu tiếp</dd>
+        <dt><kbd>1</kbd>–<kbd>6</kbd></dt><dd><b>Khi đang trả lời:</b> thí sinh giơ bảng (theo thứ tự) · bấm lại để bỏ</dd>
+        <dt><kbd>1</kbd>–<kbd>6</kbd></dt><dd><b>Khi đang chấm:</b> bỏ chọn / chọn lại người trả lời đúng</dd>
+        <dt><kbd>O</kbd></dt><dd>Sửa thứ tự giơ bảng (khi đang chấm)</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Xác nhận chấm điểm câu hỏi</dd>
+        <dt><kbd>V</kbd></dt><dd>Xem lại video (trước khi tính giờ)</dd>
+        <dt><kbd>U</kbd> <kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Hoàn tác thao tác gần nhất</dd>
+        <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>Dừng–tiếp tục / đặt lại đồng hồ</dd>
+        <dt><kbd>F</kbd> / <kbd>M</kbd></dt><dd>Toàn màn hình / âm thanh (cả video)</dd>
+      </dl>
       <div class="row center"><button id="help-close" class="btn btn-primary">Đóng <kbd>Esc</kbd></button></div>
     </div>
   </div>
@@ -363,11 +449,13 @@
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/obstacle.js"></script>
+  <script src="js/accel.js"></script>
   <script src="js/data.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/confetti.js"></script>
   <script src="js/obstacle-ui.js"></script>
+  <script src="js/accel-ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Thử thách tri thức — classroom quiz presenter
 
-An Olympia-style quiz for the projector, in two rounds. The interface is in Vietnamese.
+An Olympia-style quiz for the projector, in three rounds. The interface is in Vietnamese.
 
 - **Vòng 1 · Khởi động (Warm-up):** each contestant answers all their questions in a
   row; correct = +points, wrong = 0.
@@ -10,8 +10,15 @@ An Olympia-style quiz for the projector, in two rounds. The interface is in Viet
   keyword at any time until the center question is scored (70 → 30 points the later
   it gets). After that nobody can guess; the teacher just opens the keyword. A wrong
   guess only removes the right to guess again. Scores carry over from round 1.
+- **Vòng 3 · Tăng tốc (Acceleration):** 4 questions (10, 20, 30, 40 s), each with
+  an optional image or video. Everyone answers on a board at the same time; the
+  teacher clicks names in the order the boards go up. After the reveal the wrong
+  ones are unticked and the correct answers score by speed: 40, 30, 20, 10.
+  Wrong = 0. Scores carry over from rounds 1 and 2.
 
-Round 2 is optional. Without it the app works exactly like a single Warm-up round.
+Rounds 2 and 3 are optional. Without them the app works exactly like a single
+Warm-up round. Each round's results show the running total and a button to the
+next round; the results after the last round are the final ones.
 
 ## Run it
 
@@ -49,13 +56,28 @@ python -m http.server 8000      # then open http://localhost:8000
    row 1, after 1, 2, 3, 4 rows; a guess during the center question is worth the
    last value). Older files with a 6th value still load; the 6th is ignored.
 
+6. Sheet **Tăng tốc** (optional, round 3): columns
+   `Câu | Câu hỏi | Đáp án | Hình ảnh/Video | Thời gian`, one row per question,
+   exactly 4 questions.
+   - *Hình ảnh/Video*: a path relative to `index.html` or a URL. Paths ending in
+     `.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv` are played as video
+     (e.g. `videos/cau-2.mp4`); anything else is shown as an image.
+     You can also pick an image or video from your computer in the editor.
+     Big videos are better as a path next to `index.html` than picked into the browser.
+   - *Thời gian*: seconds for this question; leave it blank to use the setting.
+
+   Settings for round 3 (in **Cài đặt**): *Số giây vòng Tăng tốc*
+   (`10, 20, 30, 40`, question 1–4) and *Điểm vòng Tăng tốc*
+   (`40, 30, 20, 10`, fastest correct answer first).
+
 CSV works too (UTF-8 or Excel's default Vietnamese encoding, comma or semicolon),
-but holds only the Warm-up questions. Add round 2 and settings in the editor
-(tab *Vòng 2*). Allowed contestants: 2–6.
+but holds only the Warm-up questions. Add rounds 2 and 3 and settings in the
+editor (tabs *Vòng 2*, *Vòng 3*). Allowed contestants: 2–6.
 
 Everything (questions, images, progress) is saved in the browser, so a refresh or
-accidentally closed tab can be resumed from the home screen. Images picked in the
-editor live only in this browser. They are not written to the exported Excel file.
+accidentally closed tab can be resumed from the home screen. Images and videos
+picked in the editor live only in this browser. They are not written to the
+exported Excel file.
 
 ## Shortcuts: round 1 (Khởi động)
 
@@ -88,6 +110,27 @@ current mode (cyan **Chọn hàng ngang** = choosing a row, gold **Chấm điể
 | `U` or `Ctrl+Z` | Undo the last action (scored row, wrong guess, keyword) |
 | `T` / `R` | Pause-resume / reset the row timer (it also pauses during a buzz) |
 
+## Shortcuts: round 3 (Tăng tốc)
+
+The badge above the card shows what number keys do right now.
+
+| Key | Action |
+| --- | --- |
+| `Space` `→` | Start round / start the clock (skips the rest of a video) / reveal answer / next question / results |
+| `1`–`6` or click a name | *Clock running:* board goes up, in order (press again to take it out) |
+| `1`–`6` | *Marking:* untick a wrong answer (press again to tick) |
+| `O` | *Marking:* fix the order — number keys take a board out or add it at the end |
+| `Enter` | Confirm the marking: points by speed among the correct answers |
+| `V` | Replay the video (before the clock starts) |
+| `U` or `Ctrl+Z` | Undo the last action (a board, a tick, the reveal, a confirmed question) |
+| `T` / `R` | Pause-resume (or start) / reset the clock |
+| `←` | On the round 3 title screen: back to the previous results |
+
+A question with a video plays it first; the clock starts when the video ends (or
+on `Space`/`T`). At 0 the buzzer sounds and the answer is shown automatically.
+Video plays with sound; `M` mutes it together with the app sounds. The test
+browser used for automated checks cannot play `.mp4` (H.264); Chrome and Edge can.
+
 ## Project layout
 
 ```
@@ -96,9 +139,11 @@ css/style.css       theme (sizes in vh so text scales with the projector)
 js/quiz.js          Warm-up state engine — pure functions, unit-tested
 js/obstacle.js      Obstacle round engine — pure functions, unit-tested
 js/obstacle-ui.js   Obstacle screen, row timer, buzz dialog, editor tab
+js/accel.js         Acceleration round engine — pure functions, unit-tested
+js/accel-ui.js      Acceleration screen, clock, video, answer order, editor tab
 js/data.js          Excel/CSV parsing, validation, template + export
 js/app.js           UI: screens, timer, keyboard, persistence wiring
-js/storage.js       IndexedDB (quiz) + localStorage (progress)
+js/storage.js       IndexedDB (quiz, picked videos) + localStorage (progress)
 js/sound.js         original Web Audio sound effects
 js/confetti.js      results confetti
 vendor/             SheetJS 0.20.3 (offline copy)

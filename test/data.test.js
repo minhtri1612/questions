@@ -72,14 +72,80 @@ test('xlsx round trip: template export → import gives the same quiz, including
   quiz.settings = {
     title: 'Lớp 7A', seconds: 45, points: 20, questionsPerContestant: 4,
     obstacleSeconds: 20, obstacleRowPoints: 15, keywordPoints: [80, 60, 50, 40, 30],
+    accelSeconds: [15, 20, 30, 45], accelPoints: [50, 30, 20, 10],
   };
   quiz.obstacle.rows[3].boxes = 'Thuyền trưởng tàu';
+  quiz.accel.questions[3].seconds = 60;
+  quiz.accel.questions[0].media = 'videos/cau-1.mp4';
   const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
   const r = D.parseWorkbook(XLSX.read(buf, { type: 'array' }));
   assert.deepEqual(r.errors, []);
   assert.deepEqual(r.quiz.settings, quiz.settings);
   assert.deepEqual(r.quiz.contestants, quiz.contestants);
   assert.deepEqual(r.quiz.obstacle, quiz.obstacle);
+  assert.deepEqual(r.quiz.accel, quiz.accel);
+});
+
+test('workbook without a "Tăng tốc" sheet has no round 3', () => {
+  const quiz = D.sampleQuiz();
+  quiz.accel = null;
+  const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
+  const r = D.parseWorkbook(XLSX.read(buf, { type: 'array' }));
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.quiz.accel, null);
+});
+
+test('"Tăng tốc" sheet: loose headers, "Câu" order, per-question time, bad time reported', () => {
+  const r = D.parseAccelRows([
+    ['STT', 'Nội dung', 'Trả lời', 'Video', 'Thời gian (giây)'],
+    [2, 'Câu B', 'b', 'videos/b.mp4', ''],
+    [1, 'Câu A', 'a', '', '25'],
+    [],
+    [4, 'Câu D', 'd', 'images/d.png', 'nhanh'],
+    [3, 'Câu C', 'c', '', '999'],
+  ]);
+  assert.deepEqual(r.accel.questions.map((q) => q.question), ['Câu A', 'Câu B', 'Câu C', 'Câu D']);
+  assert.deepEqual(r.accel.questions.map((q) => q.seconds), [25, null, 300, null], 'blank → setting, too big → clamped');
+  assert.equal(r.errors.length, 1, 'non-numeric time is reported');
+  assert.match(r.errors[0], /Thời gian/);
+  assert.equal(r.accel.questions[1].media, 'videos/b.mp4');
+});
+
+test('media kind: videos by extension or browser storage, everything else is an image', () => {
+  assert.equal(D.mediaKind(''), '');
+  assert.equal(D.mediaKind('videos/a.MP4'), 'video');
+  assert.equal(D.mediaKind('https://x.org/v.webm?x=1'), 'video');
+  assert.equal(D.mediaKind('idb:v123'), 'video');
+  assert.equal(D.mediaKind('images/a.png'), 'image');
+  assert.equal(D.mediaKind('data:image/png;base64,AA'), 'image');
+});
+
+test('round 3 needs exactly 4 complete questions, and its errors block only round 3', () => {
+  const quiz = D.sampleQuiz();
+  quiz.accel.questions.pop();
+  quiz.accel.questions[0].answer = '';
+  const errs = D.roundErrors(quiz, 'accel');
+  assert.equal(errs.length, 2);
+  assert.deepEqual(D.roundErrors(quiz, 'warmup'), []);
+  assert.deepEqual(D.roundErrors(quiz, 'obstacle'), []);
+  quiz.accel = null;
+  assert.equal(D.roundErrors(quiz, 'accel').length, 1, 'no round 3 at all');
+});
+
+test('round 3 settings need 4 numbers each', () => {
+  const errors = [];
+  assert.deepEqual(D.parseNumberList('accelPoints', D.LIMITS.accelPoint, '40; 30, 20 10', errors), [40, 30, 20, 10]);
+  assert.deepEqual(D.parseNumberList('accelSeconds', D.LIMITS.accelSecond, '10, 20', errors), [10, 20, 30, 40]);
+  assert.equal(errors.length, 1);
+});
+
+test('exported Excel leaves out videos and images picked in the editor', () => {
+  const quiz = D.sampleQuiz();
+  quiz.accel.questions[0].media = 'idb:v1';
+  quiz.accel.questions[1].media = 'data:image/png;base64,AA';
+  const rows = D.accelRows(quiz.accel);
+  assert.equal(rows[1][3], '');
+  assert.equal(rows[2][3], '');
 });
 
 test('workbook without an obstacle sheet has no round 2', () => {
@@ -145,6 +211,9 @@ test('normalizeQuiz upgrades a quiz saved by the previous version', () => {
   const old = { id: 'x', settings: { title: 't', seconds: 30, points: 10, questionsPerContestant: 4 }, contestants: [] };
   const q = D.normalizeQuiz(old);
   assert.equal(q.obstacle, null);
+  assert.equal(q.accel, null, 'quizzes saved before round 3 have no round 3');
+  assert.deepEqual(q.settings.accelSeconds, [10, 20, 30, 40]);
+  assert.deepEqual(q.settings.accelPoints, [40, 30, 20, 10]);
   assert.equal(q.settings.obstacleSeconds, 15);
   assert.deepEqual(q.settings.keywordPoints, [70, 60, 50, 40, 30]);
   const six = D.normalizeQuiz({ id: 'y', settings: { keywordPoints: [90, 60, 50, 40, 30, 20] }, contestants: [] });
