@@ -796,8 +796,9 @@
             el(
               'div',
               { class: 'row center' },
-              el('button', { class: 'btn btn-primary', type: 'button', text: '+ Thêm câu hỏi vòng 4', onclick: () => setFinish(D.emptyFinish(q.contestants.length)) }),
-              el('button', { class: 'btn btn-ghost', type: 'button', text: 'Dùng ví dụ mẫu', onclick: () => setFinish(D.sampleFinish(q.contestants.length)) })
+              // Start from filled-in sample questions (editable); a blank form is the second choice.
+              el('button', { class: 'btn btn-primary', type: 'button', text: '+ Thêm câu hỏi vòng 4 (có sẵn câu mẫu)', onclick: () => setFinish(D.sampleFinish(q.contestants.length)) }),
+              el('button', { class: 'btn btn-ghost', type: 'button', text: 'Soạn từ trang trống', onclick: () => setFinish(D.emptyFinish(q.contestants.length)) })
             )
           )
         );
@@ -856,7 +857,7 @@
           { class: 'row ob-ed-remove' },
           // Still nothing typed: the sample can fill it in.
           fin.turns.every((t) => t.slots.every((s) => s.versions.every((v) => !v.question.trim() && !v.answer.trim())))
-            ? el('button', { class: 'btn btn-ghost', type: 'button', text: 'Dùng ví dụ mẫu', onclick: () => setFinish(D.sampleFinish(q.contestants.length)) })
+            ? el('button', { class: 'btn btn-primary', type: 'button', text: 'Điền câu hỏi mẫu', onclick: () => setFinish(D.sampleFinish(q.contestants.length)) })
             : null,
           el('button', {
             class: 'btn btn-danger',
