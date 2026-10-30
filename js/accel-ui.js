@@ -699,7 +699,7 @@
           el(
             'div',
             { class: 'panel ob-ed-empty' },
-            el('h3', { text: 'Bộ câu hỏi này chưa có vòng Tăng tốc' }),
+            el('h3', { text: 'Chưa có câu hỏi vòng 3' }),
             el('p', {
               class: 'muted',
               text: 'Vòng 3 gồm 4 câu hỏi, cả lớp trả lời cùng lúc. Ai đúng nhanh nhất được nhiều điểm nhất. Mỗi câu có thể kèm ảnh hoặc video. Điểm các vòng trước được cộng dồn.',
@@ -707,7 +707,7 @@
             el(
               'div',
               { class: 'row center' },
-              el('button', { class: 'btn btn-primary', type: 'button', text: '+ Tạo vòng 3', onclick: () => setAccel(D.emptyAccel()) }),
+              el('button', { class: 'btn btn-primary', type: 'button', text: '+ Thêm câu hỏi vòng 3', onclick: () => setAccel(D.emptyAccel()) }),
               el('button', { class: 'btn btn-ghost', type: 'button', text: 'Dùng ví dụ mẫu', onclick: () => setAccel(D.sampleAccel()) })
             )
           )

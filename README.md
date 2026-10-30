@@ -58,7 +58,9 @@ python -m http.server 8000      # then open http://localhost:8000
 
 6. Sheet **Tăng tốc** (optional, round 3): columns
    `Câu | Câu hỏi | Đáp án | Hình ảnh/Video | Thời gian`, one row per question,
-   exactly 4 questions.
+   exactly 4 questions. Without this sheet the home screen shows
+   **+ Thêm câu hỏi vòng 3**, which opens the editor's *Vòng 3 · Tăng tốc* tab
+   to add the questions there.
    - *Hình ảnh/Video*: a path relative to `index.html` or a URL. Paths ending in
      `.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv` are played as video
      (e.g. `videos/cau-2.mp4`); anything else is shown as an image.

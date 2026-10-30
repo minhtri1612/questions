@@ -362,7 +362,7 @@
     $('home-resume-meta').textContent =
       `${app.quiz.contestants.length} thí sinh · Khởi động: ${st.questionsPerContestant} câu mỗi thí sinh, ${st.seconds} giây/câu` +
       (hasOb ? ` · Vượt chướng ngại vật: từ khóa ${D.letterCount(D.letterize(app.quiz.obstacle.keyword))} chữ cái` : '') +
-      (hasAc ? ` · Tăng tốc: ${app.quiz.accel.questions.length} câu` : '');
+      (hasAc ? ` · Tăng tốc: ${app.quiz.accel.questions.length} câu` : ' · Chưa có câu hỏi vòng 3');
 
     const s = savedSession();
     const progress = hasProgress(s);
@@ -384,9 +384,11 @@
     r2.textContent = 'Vòng 2 · Vượt chướng ngại vật ▶';
     r2.onclick = startObstacleFlow;
     const r3 = $('btn-round3');
-    r3.hidden = !hasAc;
-    r3.textContent = 'Vòng 3 · Tăng tốc ▶';
-    r3.onclick = startAccelFlow;
+    // Always shown: without round 3 questions it opens the editor to add them.
+    r3.hidden = false;
+    r3.textContent = hasAc ? 'Vòng 3 · Tăng tốc ▶' : '+ Thêm câu hỏi vòng 3';
+    r3.title = hasAc ? '' : 'Chưa có câu hỏi vòng 3 — mở trình soạn để thêm';
+    r3.onclick = hasAc ? startAccelFlow : () => openEditor('accel');
   }
 
   /**
