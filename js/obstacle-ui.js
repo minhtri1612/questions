@@ -27,6 +27,8 @@
     let cardSlot = null;
     let buzzing = null; // contestant index while the buzz dialog is open
     let resumeAfterBuzz = false;
+    let confirming = false; // "open the keyword early?" dialog is up
+    let resumeAfterConfirm = false;
     let finalTimers = [];
 
     /* =========================================================
@@ -127,7 +129,17 @@
 
     function fitQuestion() {
       const box = $('ob-q');
-      if (!$('ob-card').hidden) ctx.fitText(box, innerHeight * 0.07, innerHeight * 0.026);
+      const card = $('ob-card');
+      const span = box.firstElementChild;
+      if (card.hidden || !span) return;
+      span.style.webkitLineClamp = '';
+      ctx.fitText(box, innerHeight * 0.07, innerHeight * 0.026);
+      if (card.classList.contains('marking') && span.offsetHeight > box.clientHeight) {
+        // Answer and ticks leave too little room even at the smallest size:
+        // cut the question with … at the lines that fit instead of clipping mid-line.
+        const line = parseFloat(getComputedStyle(span).lineHeight) || 1;
+        span.style.webkitLineClamp = Math.max(1, Math.floor(box.clientHeight / line));
+      }
     }
 
     /* =========================================================
@@ -183,8 +195,7 @@
         if (s.rows[O.CENTER].status !== 'closed') {
           name = 'Hết câu hỏi';
           hint = 'Chờ thí sinh bấm chuông · K: mở chướng ngại vật';
-        }
-        else if (s.rows[O.CENTER].status === 'closed' && O.centerUnlocked(s)) hint = 'Phím 5: câu hỏi trung tâm';
+        } else if (O.centerUnlocked(s)) hint = 'Phím 5: câu hỏi trung tâm';
         else hint = 'Phím 1–4 chọn hàng ngang';
       } else if (s.phase === 'question') {
         cls = 'mode-question';
@@ -277,11 +288,12 @@
               'button',
               { class: 'mark-btn' + (s.marks[ci] ? ' on' : ''), type: 'button', onclick: () => toggle(ci) },
               el('kbd', { text: ci + 1 }),
-              el('span', { class: 'mark-name', text: c.name }),
+              el('span', { class: 'mark-name', text: c.name, title: c.name }),
               el('span', { class: 'mk', 'aria-hidden': 'true' })
             )
           )
         );
+        ctx.fitNames([...marks.querySelectorAll('.mark-name')]);
       }
       requestAnimationFrame(fitQuestion);
     }
@@ -470,6 +482,7 @@
       const s = st();
       const ct = quiz().contestants[c];
       if (!ct) return;
+      if (confirming) return;
       if (!O.canBuzz(s, c)) {
         if (s.eliminated[c]) toast(`${ct.name} đã mất quyền trả lời chướng ngại vật.`);
         else if (s.phase === 'intro') toast('Hãy bắt đầu vòng thi trước (Space).');
@@ -517,6 +530,40 @@
           : 'Tất cả thí sinh đã mất quyền trả lời — nhấn K để mở chướng ngại vật.',
         3200
       );
+    }
+
+    /* =========================================================
+       Confirm opening the keyword early (in-app, works in fullscreen)
+       ========================================================= */
+
+    function openConfirm() {
+      confirming = true;
+      resumeAfterConfirm = tm.running;
+      if (tm.running) {
+        stopLoop();
+        renderTimer();
+      }
+      $('ob-confirm').hidden = false;
+    }
+
+    function closeConfirm(resume) {
+      $('ob-confirm').hidden = true;
+      confirming = false;
+      if (resume && resumeAfterConfirm && st().phase === 'question' && remaining() > 0) startLoop();
+      resumeAfterConfirm = false;
+      if (resume) renderTimer();
+    }
+
+    function openKeyword() {
+      const s = st();
+      if (!PLAYING.includes(s.phase)) return;
+      stopLoop();
+      commit(O.revealKeyword(withTimer(s)));
+    }
+
+    function confirmKeyword() {
+      closeConfirm(false);
+      openKeyword();
     }
 
     /* =========================================================
@@ -592,9 +639,8 @@
       keyword() {
         const s = st();
         if (!PLAYING.includes(s.phase)) return;
-        if (s.rows[O.CENTER].status === 'closed' && !confirm('Chưa chơi hết các câu hỏi. Mở chướng ngại vật ngay (không ai được điểm từ khóa)?')) return;
-        stopLoop();
-        commit(O.revealKeyword(withTimer(s)));
+        if (s.rows[O.CENTER].status === 'closed') openConfirm();
+        else openKeyword();
       },
       undo() {
         const s = st();
@@ -655,11 +701,19 @@
 
     function handleKey(e) {
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
-        if (buzzing == null) actions.undo();
+        if (buzzing == null && !confirming) actions.undo();
         return true;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       const code = e.code;
+
+      if (confirming) {
+        if (e.repeat) return true;
+        if (code === 'Enter' || code === 'NumpadEnter' || code === 'KeyK') confirmKeyword();
+        else if (code === 'Escape' || code === 'ArrowLeft' || code === 'Backspace') closeConfirm(true);
+        else if (code === 'KeyF' || code === 'KeyM') actions[KEYS[code]]();
+        return true;
+      }
 
       if (buzzing != null) {
         // While a contestant is answering the keyword only the verdict keys work.
@@ -874,6 +928,7 @@
       stopLoop();
       clearFinalTimers();
       if (buzzing != null) closeBuzz(false);
+      if (confirming) closeConfirm(false);
       built = false;
     }
 
@@ -890,6 +945,8 @@
         closeBuzz(true);
         render();
       };
+      $('ob-confirm-yes').onclick = confirmKeyword;
+      $('ob-confirm-no').onclick = () => closeConfirm(true);
       let idleTimer = 0;
       const screen = $('screen-obstacle');
       screen.addEventListener('mousemove', () => {

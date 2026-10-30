@@ -321,11 +321,22 @@ kbd {
   font-weight: 700;
   line-height: 1.15;
   overflow: hidden;
-  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+/* Narrow tiles (many contestants on a 4:3 screen): name on its own line above bell + score. */
+.tiles.compact .tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'name name' 'buzz score';
+  align-items: center;
+  gap: 0.4vh 0.6vw;
+  padding: 0.8vh 0.9vw;
+}
+.tiles.compact .tile-name { grid-area: name; -webkit-line-clamp: 1; text-align: center; }
+.tiles.compact .tile-buzz { grid-area: buzz; width: 4vh; height: 4vh; }
+.tiles.compact .tile-score { grid-area: score; font-size: 3.8vh; }
 .tile-score {
   font-size: 4.4vh;
   font-weight: 800;
@@ -936,8 +947,9 @@ kbd {
   font-weight: 600;
   transition: background 0.2s, color 0.2s;
 }
-.mode-name { font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
-.mode-hint { opacity: 0.9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mode-name { font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The hint gives way first; a long buzzing name is cut only after it. */
+.mode-hint { opacity: 0.9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex-shrink: 1000; }
 .mode-board { color: var(--cyan); border-color: rgba(58, 209, 255, 0.7); background: rgba(58, 209, 255, 0.12); }
 .mode-question { color: #d6e4ff; border-color: rgba(160, 190, 255, 0.55); background: rgba(40, 90, 210, 0.3); }
 .mode-mark { color: var(--gold); border-color: rgba(255, 201, 74, 0.8); background: rgba(255, 201, 74, 0.15); }
@@ -1014,6 +1026,7 @@ kbd {
 .ob-card.marking .ob-card-label { color: var(--gold); }
 .ob-card-meta { font-size: 2vh; color: var(--muted); margin-top: 0.4vh; }
 .ob-q { font-size: 5vh; }
+.ob-card.marking .ob-q > span { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .ob-card-boxes { justify-content: center; }
 .ob-answer { text-align: center; font-size: 4.6vh; font-weight: 800; color: #fff6dc; text-shadow: 0 0.3vh 1vh rgba(0, 0, 0, 0.4); }
 .timer-sm { width: 13vh; height: 13vh; flex: none; }
@@ -1145,6 +1158,8 @@ kbd {
 .buzz-name { font-size: 8vh; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
 .buzz-value { font-size: 2.4vh; color: var(--gold); font-weight: 600; }
 .buzz-panel .btn-lg { font-size: max(15px, 2.2vh); }
+.confirm-panel { border-color: var(--gold); box-shadow: 0 0 10vh rgba(255, 200, 60, 0.35); }
+.confirm-title { font-size: 5.5vh; font-weight: 800; line-height: 1.15; }
 
 @media (max-aspect-ratio: 4/3) {
   .ob-stage { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 2vw; }

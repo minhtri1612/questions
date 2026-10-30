@@ -209,6 +209,50 @@
     container.querySelectorAll('.tile-buzz-icon').forEach((icon) => {
       icon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS.bell + '</svg>';
     });
+    fitTileNames(container);
+  }
+
+  /**
+   * Vietnamese names put the family name first, so a cut-off "Nguyễn Thị…" hides
+   * the name people are called by. Shorten from the front instead:
+   * full name → last two words → given name, skipping forms two contestants share.
+   */
+  function nameForms(names) {
+    const forms = names.map((n) => {
+      const w = n.trim().split(/\s+/);
+      return [w.join(' '), w.slice(-2).join(' '), w[w.length - 1]];
+    });
+    return forms.map((f, i) => f.filter((x, k) => k === 0 || !forms.some((g, j) => j !== i && g[k] === x)));
+  }
+
+  /**
+   * Put the longest name form that fits in each box (box i = contestant i).
+   * Returns true when every box fits one of its first `depth` forms.
+   */
+  function fitNames(boxes, depth = 3) {
+    const forms = nameForms(app.quiz.contestants.map((c) => c.name));
+    const fits = (b) => b.scrollHeight <= b.clientHeight + 1 && b.scrollWidth <= b.clientWidth + 1;
+    return boxes
+      .map((b, i) => {
+        for (const t of forms[i].slice(0, depth)) {
+          b.textContent = t;
+          if (fits(b)) return true;
+        }
+        b.textContent = forms[i][forms[i].length - 1];
+        return false;
+      })
+      .every(Boolean);
+  }
+
+  /** Tiles keep at least two words of each name; very narrow tiles switch to the compact layout. */
+  function fitTileNames(container) {
+    if (!container.children.length || !container.offsetWidth) return;
+    const boxes = [...container.children].map((t) => t.querySelector('.tile-name'));
+    container.classList.remove('compact');
+    if (!fitNames(boxes, 2)) {
+      container.classList.add('compact');
+      fitNames(boxes);
+    }
   }
 
   function updateTiles(container, scores, active, deltas) {
@@ -1437,9 +1481,14 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       fitCard();
+      refitTileNames();
       OB.onResize();
     }, 120);
   });
+  // Hidden tile rows are skipped, so this only touches the screen on show.
+  const refitTileNames = () => ['pr-tiles', 'ob-tiles'].forEach((id) => fitTileNames($(id)));
+  // Names were measured before the web font arrived on the first show.
+  if (document.fonts) document.fonts.addEventListener('loadingdone', refitTileNames);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) persistSession();
   });
@@ -1458,6 +1507,7 @@
     scoreDeltas,
     setFitText,
     fitText,
+    fitNames,
     imageCell,
     edited,
     commit,
