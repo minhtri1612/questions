@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900">
+  <!-- Sample image for the Obstacle round: a lighthouse at night. Original artwork. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1440"/>
+      <stop offset=".55" stop-color="#2a2f7a"/>
+      <stop offset=".8" stop-color="#8a4f8f"/>
+      <stop offset="1" stop-color="#f19a6b"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d3f86"/>
+      <stop offset="1" stop-color="#071a45"/>
+    </linearGradient>
+    <linearGradient id="beamL" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#fff3b0" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamR" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#fff3b0" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#fffbe0"/>
+      <stop offset=".35" stop-color="#ffe27a" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#ffd24a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#sky)"/>
+
+  <!-- stars -->
+  <g fill="#fff">
+    <circle cx="80" cy="60" r="3"/><circle cx="190" cy="140" r="2"/><circle cx="300" cy="50" r="2.5"/>
+    <circle cx="420" cy="120" r="2"/><circle cx="130" cy="230" r="2"/><circle cx="520" cy="40" r="2"/>
+    <circle cx="700" cy="90" r="2"/><circle cx="860" cy="40" r="2.5"/><circle cx="1110" cy="170" r="2"/>
+    <circle cx="1000" cy="250" r="2"/><circle cx="260" cy="300" r="1.8"/><circle cx="1150" cy="60" r="2"/>
+  </g>
+  <!-- North star -->
+  <path d="M230 120 l8 26 26 8 -26 8 -8 26 -8 -26 -26 -8 26 -8z" fill="#fff6c8"/>
+
+  <!-- moon -->
+  <circle cx="980" cy="140" r="70" fill="#fdf1c7"/>
+  <circle cx="1010" cy="120" r="64" fill="#2a2f7a" opacity=".9"/>
+
+  <!-- light beams -->
+  <polygon points="600,330 0,180 0,430" fill="url(#beamL)"/>
+  <polygon points="600,330 1200,200 1200,470" fill="url(#beamR)"/>
+
+  <!-- birds -->
+  <g fill="none" stroke="#0d1a4a" stroke-width="5" stroke-linecap="round">
+    <path d="M120 380 q18 -16 36 0 q18 -16 36 0"/>
+    <path d="M220 330 q14 -12 28 0 q14 -12 28 0"/>
+  </g>
+
+  <!-- sea -->
+  <rect y="600" width="1200" height="300" fill="url(#sea)"/>
+  <g fill="none" stroke="#5b8de0" stroke-width="5" stroke-linecap="round" opacity=".7">
+    <path d="M40 690 q40 -18 80 0 t80 0"/>
+    <path d="M880 700 q40 -18 80 0 t80 0 t80 0"/>
+    <path d="M120 800 q40 -18 80 0 t80 0 t80 0"/>
+    <path d="M760 830 q40 -18 80 0 t80 0"/>
+  </g>
+  <!-- beam reflection -->
+  <polygon points="560,640 640,640 760,900 440,900" fill="#ffe27a" opacity=".18"/>
+
+  <!-- boat -->
+  <g transform="translate(150 610)">
+    <path d="M0 50 h170 l-30 40 h-110z" fill="#7a3b1e"/>
+    <rect x="80" y="-90" width="8" height="140" fill="#5a2c16"/>
+    <path d="M92 -86 l70 120 h-70z" fill="#f5efe0"/>
+    <path d="M76 -70 l-60 100 h60z" fill="#e8dcc0"/>
+  </g>
+
+  <!-- rocks -->
+  <path d="M430 690 q40 -80 110 -70 q50 -40 120 -10 q70 -10 110 70 q20 30 -20 40 h-300 q-40 -5 -20 -30z" fill="#2b2440"/>
+  <path d="M470 690 q30 -50 80 -50 q60 -30 110 0" fill="none" stroke="#4b4068" stroke-width="8"/>
+
+  <!-- lighthouse -->
+  <g>
+    <polygon points="560,640 640,640 625,370 575,370" fill="#f4f1ea"/>
+    <polygon points="566,585 634,585 631,540 569,540" fill="#d6283f"/>
+    <polygon points="572,490 628,490 626,445 574,445" fill="#d6283f"/>
+    <polygon points="576,400 624,400 625,370 575,370" fill="#d6283f"/>
+    <rect x="590" y="600" width="20" height="40" rx="10" fill="#3a2c4f"/>
+    <rect x="562" y="358" width="76" height="14" rx="4" fill="#2b2440"/>
+    <circle cx="600" cy="330" r="90" fill="url(#glow)"/>
+    <rect x="575" y="305" width="50" height="54" rx="6" fill="#fff6c8" stroke="#2b2440" stroke-width="6"/>
+    <path d="M565 308 L600 270 L635 308 Z" fill="#d6283f" stroke="#2b2440" stroke-width="6" stroke-linejoin="round"/>
+    <circle cx="600" cy="266" r="6" fill="#2b2440"/>
+  </g>
+</svg>

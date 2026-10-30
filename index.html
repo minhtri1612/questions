@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thử thách tri thức</title>
+  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <!-- ============ HOME ============ -->
+  <section id="screen-home" class="screen" hidden>
+    <div class="home">
+      <header class="brand">
+        <img src="images/logo.svg" alt="" class="brand-logo">
+        <div>
+          <h1 class="brand-title">Thử thách tri thức</h1>
+          <p class="brand-sub">Trình chiếu đố vui trên lớp</p>
+        </div>
+      </header>
+
+      <div id="home-resume" class="panel resume" hidden>
+        <div>
+          <div class="eyebrow">Bộ câu hỏi đã lưu</div>
+          <div id="home-resume-title" class="resume-title"></div>
+          <div id="home-resume-meta" class="muted"></div>
+        </div>
+        <div class="row">
+          <button id="btn-resume" class="btn btn-primary btn-lg"></button>
+          <button id="btn-round1" class="btn btn-ghost btn-lg"></button>
+          <button id="btn-round2" class="btn btn-ghost btn-lg"></button>
+          <button id="btn-edit-saved" class="btn btn-ghost btn-lg">Chỉnh sửa</button>
+        </div>
+      </div>
+
+      <label id="dropzone" class="panel dropzone" tabindex="0">
+        <input id="file-input" type="file" accept=".xlsx,.xls,.ods,.csv,.txt" hidden>
+        <div class="dropzone-icon" aria-hidden="true">⬆</div>
+        <div class="dropzone-title">Mở tệp câu hỏi</div>
+        <div class="muted">Kéo thả tệp Excel (.xlsx) hoặc CSV vào đây, hoặc bấm để chọn tệp</div>
+      </label>
+
+      <div id="home-errors" class="panel errors" hidden></div>
+
+      <div class="row center">
+        <button id="btn-sample" class="btn btn-ghost">Dùng bộ câu hỏi mẫu</button>
+        <button id="btn-template-xlsx" class="btn btn-ghost">⬇ Tải tệp mẫu Excel</button>
+        <button id="btn-template-csv" class="btn btn-ghost">⬇ Tải tệp mẫu CSV</button>
+      </div>
+
+      <p class="muted small center">
+        Tệp mẫu gồm các cột <b>Thí sinh · Câu · Câu hỏi · Đáp án · Hình ảnh</b>.
+        Trang tính “Cài đặt” (không bắt buộc) chỉnh số giây, số điểm và số câu mỗi thí sinh.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section id="screen-editor" class="screen" hidden>
+    <div class="editor">
+      <header class="editor-bar">
+        <button id="ed-home" class="btn btn-ghost">‹ Trang chủ</button>
+        <h2>Chuẩn bị câu hỏi</h2>
+        <div class="row">
+          <span id="ed-saved" class="muted small"></span>
+          <button id="ed-export" class="btn btn-ghost">⬇ Xuất Excel</button>
+          <button id="ed-start" class="btn btn-primary btn-lg">Bắt đầu trình chiếu ▶</button>
+        </div>
+      </header>
+
+      <div class="tabs" role="tablist">
+        <button id="tab-warmup" class="tab" role="tab" data-tab="warmup">Vòng 1 · Khởi động <span class="tab-badge" hidden></span></button>
+        <button id="tab-obstacle" class="tab" role="tab" data-tab="obstacle">Vòng 2 · Vượt chướng ngại vật <span class="tab-badge" hidden></span></button>
+      </div>
+
+      <div id="ed-errors" class="panel errors" hidden></div>
+
+      <div id="ed-pane-warmup" class="ed-pane">
+      <div class="panel settings">
+        <label class="field field-wide">
+          <span>Tên cuộc thi</span>
+          <input id="set-title" type="text" maxlength="80">
+        </label>
+        <label class="field">
+          <span>Số giây mỗi câu</span>
+          <input id="set-seconds" type="number" min="5" max="300" step="5">
+        </label>
+        <label class="field">
+          <span>Điểm mỗi câu</span>
+          <input id="set-points" type="number" min="1" max="1000">
+        </label>
+        <label class="field">
+          <span>Số câu mỗi thí sinh</span>
+          <input id="set-perc" type="number" min="1" max="20">
+        </label>
+      </div>
+
+      <div id="ed-contestants" class="ed-contestants"></div>
+
+      <div class="row center">
+        <button id="ed-add" class="btn btn-ghost">+ Thêm thí sinh</button>
+      </div>
+      </div>
+
+      <div id="ed-pane-obstacle" class="ed-pane" hidden></div>
+      <input id="ed-image-input" type="file" accept="image/*" hidden>
+    </div>
+  </section>
+
+  <!-- ============ PRESENTATION ============ -->
+  <section id="screen-present" class="screen present" hidden>
+    <header class="scorebar">
+      <div id="pr-title" class="scorebar-title"></div>
+      <div id="pr-tiles" class="tiles"></div>
+    </header>
+
+    <main class="stage">
+      <div class="stage-main">
+        <div id="pr-intro" class="intro" hidden>
+          <div class="intro-eyebrow" id="pr-intro-eyebrow"></div>
+          <div class="intro-name" id="pr-intro-name"></div>
+          <div class="intro-meta" id="pr-intro-meta"></div>
+          <div class="intro-hint">Nhấn <kbd>Space</kbd> hoặc <kbd>→</kbd> để bắt đầu</div>
+        </div>
+
+        <div id="pr-card-wrap" class="card-wrap" hidden>
+          <div id="pr-card" class="card" role="button" tabindex="-1" aria-label="Lật thẻ">
+            <div class="face front">
+              <div class="face-label"><span id="pr-front-label"></span></div>
+              <div class="face-body">
+                <img id="pr-front-img" class="q-image" alt="" hidden>
+                <div id="pr-front-text" class="q-text fit"></div>
+              </div>
+              <div class="face-foot">Bấm vào thẻ hoặc nhấn <kbd>Space</kbd> để xem đáp án</div>
+            </div>
+            <div class="face back">
+              <div class="face-label gold"><span>Đáp án</span></div>
+              <div class="face-body">
+                <div id="pr-back-question" class="back-question"></div>
+                <div id="pr-back-text" class="a-text fit"></div>
+              </div>
+              <div id="pr-stamp" class="stamp" hidden></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div id="pr-timer" class="timer">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+            <circle id="pr-timer-ring" class="timer-ring" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="timer-center">
+            <div id="pr-timer-num" class="timer-num">30</div>
+            <div id="pr-timer-label" class="timer-label">giây</div>
+          </div>
+        </div>
+        <div id="pr-dots" class="dots"></div>
+        <div id="pr-status" class="status"></div>
+      </aside>
+    </main>
+
+    <footer class="controls">
+      <div class="row">
+        <button class="btn btn-ctl" data-act="back" title="Câu trước (←)">‹ Trước</button>
+        <button class="btn btn-ctl" data-act="flip" title="Lật thẻ (Space)">Lật thẻ <kbd>Space</kbd></button>
+      </div>
+      <div class="row score-btns">
+        <button class="btn btn-correct" data-act="correct" title="Trả lời đúng (C)">✓ Đúng <kbd>C</kbd></button>
+        <button class="btn btn-wrong" data-act="wrong" title="Trả lời sai (X)">✗ Sai <kbd>X</kbd></button>
+        <button class="btn btn-ctl" data-act="skip" title="Bỏ qua câu này, 0 điểm (S)">Bỏ qua <kbd>S</kbd></button>
+        <button class="btn btn-ctl" data-act="undo" title="Hoàn tác lần chấm gần nhất (U)">↶ Hoàn tác <kbd>U</kbd></button>
+        <button class="btn btn-ctl btn-next" data-act="next" title="Câu tiếp (→)">Tiếp ›</button>
+      </div>
+      <div class="row">
+        <button class="btn btn-icon" data-act="pause" title="Dừng / tiếp tục đồng hồ (T)" id="pr-btn-pause">⏸</button>
+        <button class="btn btn-icon" data-act="reset" title="Đặt lại đồng hồ (R)">⟲</button>
+        <button class="btn btn-icon" data-act="mute" title="Bật / tắt âm thanh (M)" data-mute-btn>🔊</button>
+        <button class="btn btn-icon" data-act="fullscreen" title="Toàn màn hình (F)">⛶</button>
+        <button class="btn btn-icon" data-act="help" title="Phím tắt (?)">?</button>
+        <button class="btn btn-icon" data-act="exit" title="Về trang chủ">✕</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ OBSTACLE ROUND ============ -->
+  <section id="screen-obstacle" class="screen present obstacle" hidden>
+    <header class="scorebar">
+      <div id="ob-title" class="scorebar-title"></div>
+      <div id="ob-tiles" class="tiles"></div>
+    </header>
+
+    <main class="ob-stage">
+      <div class="ob-left">
+        <div id="ob-mode" class="mode-badge"></div>
+        <div class="ob-left-body">
+          <div id="ob-board" class="ob-board"></div>
+          <div id="ob-card" class="ob-card" hidden>
+            <div class="ob-card-head">
+              <div>
+                <div id="ob-card-label" class="ob-card-label"></div>
+                <div id="ob-card-meta" class="ob-card-meta"></div>
+              </div>
+              <div id="ob-timer" class="timer timer-sm">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+                  <circle id="ob-timer-ring" class="timer-ring" cx="60" cy="60" r="52"></circle>
+                </svg>
+                <div class="timer-center">
+                  <div id="ob-timer-num" class="timer-num">15</div>
+                  <div id="ob-timer-label" class="timer-label">giây</div>
+                </div>
+              </div>
+            </div>
+            <div id="ob-q" class="q-text fit ob-q"></div>
+            <div id="ob-card-boxes" class="boxes ob-card-boxes"></div>
+            <div id="ob-answer" class="ob-answer" hidden></div>
+            <div id="ob-marks" class="ob-marks" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ob-right">
+        <div id="ob-image" class="ob-image">
+          <img id="ob-img" alt="Ảnh chướng ngại vật">
+          <div class="ob-piece corner tl" data-piece="0"><span>1</span></div>
+          <div class="ob-piece corner tr" data-piece="1"><span>2</span></div>
+          <div class="ob-piece corner bl" data-piece="2"><span>3</span></div>
+          <div class="ob-piece corner br" data-piece="3"><span>4</span></div>
+          <div class="ob-piece center" data-piece="4"><span>★</span></div>
+        </div>
+        <div class="ob-keyword">
+          <div id="ob-kw-label" class="ob-kw-label"></div>
+          <div id="ob-kw-boxes" class="boxes kw-boxes"></div>
+          <div id="ob-kw-result" class="ob-kw-result" hidden></div>
+        </div>
+      </div>
+
+      <div id="ob-intro" class="ob-intro" hidden>
+        <div class="intro">
+          <div class="intro-eyebrow">Vòng 2</div>
+          <div class="intro-name">Vượt chướng ngại vật</div>
+          <div class="intro-meta" id="ob-intro-meta"></div>
+          <div class="intro-hint">Nhấn <kbd>Space</kbd> hoặc <kbd>→</kbd> để bắt đầu</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="controls">
+      <div class="row">
+        <button class="btn btn-ctl" data-ob="cancel" title="Về bảng hàng ngang (←)">‹ Về bảng <kbd>←</kbd></button>
+      </div>
+      <div class="row">
+        <button class="btn btn-next" data-ob="start">Bắt đầu <kbd>Space</kbd></button>
+        <button class="btn btn-next" data-ob="reveal" title="Hiện đáp án (Space)">Hiện đáp án <kbd>Space</kbd></button>
+        <button class="btn btn-correct" data-ob="confirm" title="Xác nhận chấm điểm (Enter)">✓ Xác nhận <kbd>Enter</kbd></button>
+        <button class="btn btn-ctl" data-ob="keyword" title="Mở từ khóa — không ai giải được (K)">Mở chướng ngại vật <kbd>K</kbd></button>
+        <button class="btn btn-next" data-ob="finish" title="Xem kết quả (Space)">Xem kết quả › <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-ob="undo" title="Hoàn tác thao tác gần nhất (U)">↶ Hoàn tác <kbd>U</kbd></button>
+      </div>
+      <div class="row">
+        <button class="btn btn-icon" data-ob="pause" id="ob-btn-pause" title="Dừng / tiếp tục đồng hồ (T)"></button>
+        <button class="btn btn-icon" data-ob="reset" title="Đặt lại đồng hồ (R)"></button>
+        <button class="btn btn-icon" data-ob="mute" title="Bật / tắt âm thanh (M)" data-mute-btn></button>
+        <button class="btn btn-icon" data-ob="fullscreen" title="Toàn màn hình (F)"></button>
+        <button class="btn btn-icon" data-ob="help" title="Phím tắt (?)">?</button>
+        <button class="btn btn-icon" data-ob="exit" title="Về trang chủ">✕</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section id="screen-results" class="screen results" hidden>
+    <div class="results-inner">
+      <div class="results-head">
+        <div id="rs-title" class="eyebrow"></div>
+        <h2 id="rs-heading" class="results-title">Kết quả chung cuộc</h2>
+      </div>
+      <ol id="rs-list" class="rank-list"></ol>
+      <div id="rs-table-wrap" class="panel rs-table-wrap" hidden></div>
+      <div id="rs-actions" class="row center rs-actions" hidden>
+        <button id="rs-back" class="btn btn-ghost">‹ Xem lại câu cuối</button>
+        <button id="rs-table" class="btn btn-ghost">Bảng chi tiết</button>
+        <button id="rs-export" class="btn btn-ghost">⬇ Xuất kết quả (CSV)</button>
+        <button id="rs-replay" class="btn btn-ghost">↻ Thi lại từ đầu</button>
+        <button id="rs-home" class="btn btn-ghost">Trang chủ</button>
+        <button id="rs-next" class="btn btn-primary" hidden>Sang vòng 2 · Vượt chướng ngại vật › <kbd>Space</kbd></button>
+      </div>
+      <div id="rs-hint" class="muted small center">Nhấn <kbd>Space</kbd> để công bố ngay</div>
+    </div>
+    <div class="results-tools">
+      <button class="btn btn-icon" data-act="mute" title="Bật / tắt âm thanh (M)" data-mute-btn>🔊</button>
+      <button class="btn btn-icon" data-act="fullscreen" title="Toàn màn hình (F)">⛶</button>
+    </div>
+  </section>
+
+  <!-- ============ OVERLAYS ============ -->
+  <div id="help" class="overlay" hidden>
+    <div class="panel help">
+      <h3>Phím tắt</h3>
+      <dl class="keys" id="help-warmup">
+        <dt><kbd>Space</kbd> <kbd>→</kbd> <kbd>PgDn</kbd></dt><dd>Lật thẻ / sang câu tiếp</dd>
+        <dt><kbd>←</kbd> <kbd>PgUp</kbd></dt><dd>Quay lại câu trước</dd>
+        <dt><kbd>C</kbd></dt><dd>Trả lời đúng (+điểm)</dd>
+        <dt><kbd>X</kbd></dt><dd>Trả lời sai (0 điểm)</dd>
+        <dt><kbd>S</kbd></dt><dd>Bỏ qua câu (0 điểm, ghi “bỏ qua”)</dd>
+        <dt><kbd>U</kbd> <kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Hoàn tác lần chấm gần nhất</dd>
+        <dt><kbd>T</kbd></dt><dd>Dừng / tiếp tục đồng hồ</dd>
+        <dt><kbd>R</kbd></dt><dd>Đặt lại đồng hồ (úp thẻ lại nếu chưa chấm)</dd>
+        <dt><kbd>F</kbd></dt><dd>Bật / tắt toàn màn hình</dd>
+        <dt><kbd>M</kbd></dt><dd>Bật / tắt âm thanh</dd>
+        <dt><kbd>?</kbd> <kbd>H</kbd></dt><dd>Hiện / ẩn bảng này</dd>
+      </dl>
+      <dl class="keys" id="help-obstacle" hidden>
+        <dt><kbd>1</kbd>–<kbd>4</kbd> <kbd>5</kbd></dt><dd><b>Khi đang ở bảng:</b> chọn hàng ngang 1–4 / câu trung tâm</dd>
+        <dt><kbd>1</kbd>–<kbd>6</kbd></dt><dd><b>Khi đang chấm:</b> đánh dấu thí sinh trả lời đúng</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Xác nhận chấm điểm hàng ngang</dd>
+        <dt><kbd>Space</kbd> <kbd>→</kbd></dt><dd>Hiện đáp án / xem kết quả</dd>
+        <dt><kbd>←</kbd></dt><dd>Về bảng (khi chưa hiện đáp án) · huỷ chuông</dd>
+        <dt><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd></dt><dd>Thí sinh bấm chuông trả lời từ khóa</dd>
+        <dt><kbd>C</kbd> / <kbd>X</kbd></dt><dd>Khi có chuông: từ khóa đúng / sai</dd>
+        <dt><kbd>K</kbd></dt><dd>Mở chướng ngại vật (không ai giải được)</dd>
+        <dt><kbd>U</kbd> <kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Hoàn tác thao tác gần nhất</dd>
+        <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>Dừng–tiếp tục / đặt lại đồng hồ</dd>
+        <dt><kbd>F</kbd> / <kbd>M</kbd></dt><dd>Toàn màn hình / âm thanh</dd>
+      </dl>
+      <div class="row center"><button id="help-close" class="btn btn-primary">Đóng <kbd>Esc</kbd></button></div>
+    </div>
+  </div>
+
+  <div id="buzz" class="overlay buzz-overlay" hidden>
+    <div class="panel buzz-panel" role="dialog" aria-labelledby="buzz-name">
+      <svg class="buzz-bell" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a1.5 1.5 0 0 0-1.5 1.5v.7A6 6 0 0 0 6 10.5V15l-2 2.5V19h16v-1.5L18 15v-4.5a6 6 0 0 0-4.5-5.8V4A1.5 1.5 0 0 0 12 2.5zM9.5 20a2.5 2.5 0 0 0 5 0z"/></svg>
+      <div class="eyebrow">Trả lời chướng ngại vật</div>
+      <div id="buzz-name" class="buzz-name"></div>
+      <div id="buzz-value" class="buzz-value"></div>
+      <div class="row center">
+        <button id="buzz-correct" class="btn btn-correct btn-lg">✓ Đúng <kbd>C</kbd></button>
+        <button id="buzz-wrong" class="btn btn-wrong btn-lg">✗ Sai — mất quyền <kbd>X</kbd></button>
+        <button id="buzz-cancel" class="btn btn-ghost btn-lg">Huỷ <kbd>←</kbd></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/obstacle.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/confetti.js"></script>
+  <script src="js/obstacle-ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
