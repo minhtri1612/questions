@@ -854,6 +854,10 @@
         el(
           'div',
           { class: 'row ob-ed-remove' },
+          // Still nothing typed: the sample can fill it in.
+          fin.turns.every((t) => t.slots.every((s) => s.versions.every((v) => !v.question.trim() && !v.answer.trim())))
+            ? el('button', { class: 'btn btn-ghost', type: 'button', text: 'Dùng ví dụ mẫu', onclick: () => setFinish(D.sampleFinish(q.contestants.length)) })
+            : null,
           el('button', {
             class: 'btn btn-danger',
             type: 'button',

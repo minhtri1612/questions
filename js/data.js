@@ -740,6 +740,8 @@
     return errors;
   }
 
+  const blankVersion = (v) => !v.question.trim() && !v.answer.trim();
+
   function validateFinish(fin, contestants, settings) {
     const errors = [];
     const pts = settings.finishPoints;
@@ -750,11 +752,18 @@
         errors.push(`${label}: chưa có câu hỏi.`);
         return;
       }
+      // A blank turn or version is one error, not one per empty box.
+      if (turn.slots.every((slot) => slot.versions.every(blankVersion))) {
+        errors.push(`${label}: chưa soạn câu nào (cần ${FINISH_SLOTS} câu, mỗi câu có bản ${pts[0]} và ${pts[1]} điểm).`);
+        return;
+      }
       if (turn.slots.length !== FINISH_SLOTS) errors.push(`${label}: có ${turn.slots.length} câu, cần đúng ${FINISH_SLOTS} câu.`);
       turn.slots.forEach((slot, j) => {
         slot.versions.forEach((v, k) => {
-          if (!v.question.trim()) errors.push(`${label}, câu ${j + 1} (${pts[k]} điểm): chưa có câu hỏi.`);
-          if (!v.answer.trim()) errors.push(`${label}, câu ${j + 1} (${pts[k]} điểm): chưa có đáp án.`);
+          const where = `${label}, câu ${j + 1} (${pts[k]} điểm)`;
+          if (blankVersion(v)) errors.push(`${where}: chưa có câu hỏi và đáp án.`);
+          else if (!v.question.trim()) errors.push(`${where}: chưa có câu hỏi.`);
+          else if (!v.answer.trim()) errors.push(`${where}: chưa có đáp án.`);
         });
       });
     });

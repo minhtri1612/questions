@@ -294,3 +294,16 @@ test('workbook without a "Về đích" sheet has no round 4', () => {
   assert.deepEqual(r.errors, []);
   assert.equal(r.quiz.finish, null);
 });
+
+test('a blank round 4 gives one error per contestant, not one per empty box', () => {
+  const quiz = D.sampleQuiz();
+  quiz.finish = D.emptyFinish(quiz.contestants.length);
+  const errs = D.roundErrors(quiz, 'finish');
+  assert.equal(errs.length, quiz.contestants.length, errs.join('\n'));
+  assert.ok(errs[0].includes('chưa soạn câu nào'));
+  quiz.finish.turns[0].slots[0].versions[0].question = 'Q';
+  const one = D.roundErrors(quiz, 'finish').filter((e) => e.includes(quiz.contestants[0].name));
+  assert.equal(one.length, 6, one.join('\n'));
+  assert.ok(one.some((e) => e.includes('câu 1 (20 điểm): chưa có đáp án.')));
+  assert.ok(one.some((e) => e.includes('câu 1 (30 điểm): chưa có câu hỏi và đáp án.')));
+});
