@@ -106,6 +106,11 @@
         tone(1975.53, t, 0.45, { type: 'sine', gain: 0.12 });
       });
     },
+    /** The star of hope is placed on a question. */
+    star() {
+      noise(0, 0.4, 0.05);
+      [1046.5, 1318.51, 1567.98, 2093].forEach((f, i) => tone(f, i * 0.06, 0.55, { type: 'sine', gain: 0.13 }));
+    },
     /** One keyword letter landing. */
     pop() {
       tone(660, 0, 0.08, { type: 'triangle', gain: 0.12, slideTo: 990 });

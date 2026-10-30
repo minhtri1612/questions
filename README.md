@@ -15,8 +15,18 @@ An Olympia-style quiz for the projector, in three rounds. The interface is in Vi
   teacher clicks names in the order the boards go up. After the reveal the wrong
   ones are unticked and the correct answers score by speed: 40, 30, 20, 10.
   Wrong = 0. Scores carry over from rounds 1 and 2.
+- **Vòng 4 · Về đích (Finish):** each contestant plays one turn of 3 questions, in
+  list order. Before the turn they pick 20 or 30 points for each question (e.g.
+  20-30-30); the teacher enters it on screen. 20-point questions get 15 s, 30-point
+  ones 20 s. Once per turn, before a question is shown, they can place the
+  **Ngôi sao hy vọng**: right = double, wrong = minus the question's points. Without
+  the star: right = +points, wrong = 0. A wrong answer (or time out, marked wrong)
+  opens a 5 s steal: the teacher picks the first hand up; right = the question's
+  points (never doubled), wrong = 0. Nobody loses points from a steal. If the answer
+  was shown before marking, there is no steal. Ties share the rank. Scores carry
+  over from rounds 1–3.
 
-Rounds 2 and 3 are optional. Without them the app works exactly like a single
+Rounds 2, 3 and 4 are optional. Without them the app works exactly like a single
 Warm-up round. Each round's results show the running total and a button to the
 next round; the results after the last round are the final ones.
 
@@ -72,9 +82,21 @@ python -m http.server 8000      # then open http://localhost:8000
    (`10, 20, 30, 40`, question 1–4) and *Điểm vòng Tăng tốc*
    (`40, 30, 20, 10`, fastest correct answer first).
 
+7. Sheet **Về đích** (optional, round 4): columns
+   `Thí sinh | Câu | Câu hỏi 20 | Đáp án 20 | Câu hỏi 30 | Đáp án 30 | Hình ảnh (tùy chọn)`,
+   3 rows per contestant (the names must match the *Câu hỏi* sheet; a blank
+   *Thí sinh* continues the one above). Each row holds both versions of a question;
+   the one the contestant picks is shown, with the row's image if there is one.
+   Without this sheet the home screen shows **+ Thêm câu hỏi vòng 4**, which opens
+   the editor's *Vòng 4 · Về đích* tab. Adding or deleting a contestant in the
+   *Vòng 1* tab adds or removes their round 4 turn too.
+
+   Settings for round 4 (in **Cài đặt**): *Số giây Về đích* (`15, 20`: low, high
+   question), *Điểm Về đích* (`20, 30`) and *Số giây cướp điểm* (`5`).
+
 CSV works too (UTF-8 or Excel's default Vietnamese encoding, comma or semicolon),
-but holds only the Warm-up questions. Add rounds 2 and 3 and settings in the
-editor (tabs *Vòng 2*, *Vòng 3*). Allowed contestants: 2–6.
+but holds only the Warm-up questions. Add rounds 2–4 and settings in the
+editor (tabs *Vòng 2*, *Vòng 3*, *Vòng 4*). Allowed contestants: 2–6.
 
 Everything (questions, images, progress) is saved in the browser, so a refresh or
 accidentally closed tab can be resumed from the home screen. Images and videos
@@ -133,6 +155,25 @@ on `Space`/`T`). At 0 the buzzer sounds and the answer is shown automatically.
 Video plays with sound; `M` mutes it together with the app sounds. The test
 browser used for automated checks cannot play `.mp4` (H.264); Chrome and Edge can.
 
+## Shortcuts: round 4 (Về đích)
+
+The badge above the card shows what keys do right now.
+
+| Key | Action |
+| --- | --- |
+| `1`–`3` | *Picking the package:* switch question 1–3 between 20 and 30 (or click) |
+| `Shift`+`1`–`3` | *Picking the package:* place / remove the star on that question |
+| `S` | *Before a question is shown:* place / remove the star on it |
+| `Space` `→` | Start round / start the turn / show the question / show the answer / nobody steals / next |
+| `C` / `X` | Correct / wrong — for the contestant, then for the stealer |
+| `1`–`6` or click a name | *Steal window:* the first hand up |
+| `←` | Cancel the stealer · on the round 4 title screen: back to the previous results |
+| `U` or `Ctrl+Z` | Undo the last action (package, star, mark, steal, …) |
+| `T` / `R` | Pause-resume / reset the clock (question or steal window) |
+
+When the question clock hits 0 the buzzer sounds and the teacher still marks it.
+When the steal window hits 0 nobody stole and the answer is shown.
+
 ## Project layout
 
 ```
@@ -143,6 +184,8 @@ js/obstacle.js      Obstacle round engine — pure functions, unit-tested
 js/obstacle-ui.js   Obstacle screen, row timer, buzz dialog, editor tab
 js/accel.js         Acceleration round engine — pure functions, unit-tested
 js/accel-ui.js      Acceleration screen, clock, video, answer order, editor tab
+js/finish.js        Finish round engine — pure functions, unit-tested
+js/finish-ui.js     Finish screen, package picker, clocks, steal dialog, editor tab
 js/data.js          Excel/CSV parsing, validation, template + export
 js/app.js           UI: screens, timer, keyboard, persistence wiring
 js/storage.js       IndexedDB (quiz, picked videos) + localStorage (progress)

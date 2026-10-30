@@ -33,6 +33,7 @@
           <button id="btn-round1" class="btn btn-ghost btn-lg"></button>
           <button id="btn-round2" class="btn btn-ghost btn-lg"></button>
           <button id="btn-round3" class="btn btn-ghost btn-lg"></button>
+          <button id="btn-round4" class="btn btn-ghost btn-lg"></button>
           <button id="btn-edit-saved" class="btn btn-ghost btn-lg">Chỉnh sửa</button>
         </div>
       </div>
@@ -76,6 +77,7 @@
         <button id="tab-warmup" class="tab" role="tab" data-tab="warmup">Vòng 1 · Khởi động <span class="tab-badge" hidden></span></button>
         <button id="tab-obstacle" class="tab" role="tab" data-tab="obstacle">Vòng 2 · Vượt chướng ngại vật <span class="tab-badge" hidden></span></button>
         <button id="tab-accel" class="tab" role="tab" data-tab="accel">Vòng 3 · Tăng tốc <span class="tab-badge" hidden></span></button>
+        <button id="tab-finish" class="tab" role="tab" data-tab="finish">Vòng 4 · Về đích <span class="tab-badge" hidden></span></button>
       </div>
 
       <div id="ed-errors" class="panel errors" hidden></div>
@@ -109,6 +111,7 @@
 
       <div id="ed-pane-obstacle" class="ed-pane" hidden></div>
       <div id="ed-pane-accel" class="ed-pane" hidden></div>
+      <div id="ed-pane-finish" class="ed-pane" hidden></div>
       <input id="ed-image-input" type="file" accept="image/*" hidden>
       <input id="ed-video-input" type="file" accept="video/mp4,video/webm,video/*" hidden>
     </div>
@@ -348,6 +351,83 @@
       </div>
     </footer>
   </section>
+  <!-- ============ FINISH ROUND ============ -->
+  <section id="screen-finish" class="screen present finish" hidden>
+    <header class="scorebar">
+      <div id="fi-title" class="scorebar-title"></div>
+      <div id="fi-tiles" class="tiles"></div>
+    </header>
+    <main class="fi-stage">
+      <div class="fi-left">
+        <div id="fi-mode" class="mode-badge"></div>
+        <div id="fi-turn" class="fi-turn" hidden></div>
+        <div id="fi-card" class="fi-card" hidden>
+          <div class="fi-card-head">
+            <div class="fi-card-titles">
+              <div id="fi-card-label" class="fi-card-label"></div>
+              <div id="fi-card-meta" class="fi-card-meta"></div>
+            </div>
+            <div id="fi-value" class="fi-value"></div>
+          </div>
+          <div id="fi-ready" class="fi-ready" hidden></div>
+          <img id="fi-img" class="fi-img" alt="" hidden>
+          <div id="fi-q" class="q-text fit fi-q"></div>
+          <div id="fi-answer" class="fi-answer" hidden></div>
+          <div id="fi-steal" class="fi-steal" hidden></div>
+          <div id="fi-verdict" class="fi-verdict" hidden></div>
+        </div>
+      </div>
+      <aside class="fi-right">
+        <div id="fi-timer" class="timer">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+            <circle id="fi-timer-ring" class="timer-ring" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="timer-center">
+            <div id="fi-timer-num" class="timer-num">15</div>
+            <div id="fi-timer-label" class="timer-label">giây</div>
+          </div>
+        </div>
+        <div id="fi-slots-title" class="ac-order-title"></div>
+        <div id="fi-slots" class="fi-slots"></div>
+        <div id="fi-status" class="status"></div>
+      </aside>
+      <div id="fi-intro" class="ob-intro" hidden>
+        <div class="intro">
+          <div class="intro-eyebrow">Vòng 4</div>
+          <div class="intro-name">Về đích</div>
+          <div class="intro-meta" id="fi-intro-meta"></div>
+          <div class="intro-hint">Nhấn <kbd>Space</kbd> hoặc <kbd>→</kbd> để bắt đầu</div>
+        </div>
+      </div>
+    </main>
+    <footer class="controls">
+      <div class="row">
+        <button class="btn btn-ctl" data-fi="back" title="Quay lại kết quả vòng trước (←)">‹ Quay lại <kbd>←</kbd></button>
+      </div>
+      <div class="row score-btns">
+        <button class="btn btn-next" data-fi="start">Bắt đầu <kbd>Space</kbd></button>
+        <button class="btn btn-next" data-fi="begin" title="Bắt đầu lượt thi (Space)">Bắt đầu lượt thi <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-fi="star" title="Đặt / bỏ Ngôi sao hy vọng cho câu này (S)">★ Ngôi sao hy vọng <kbd>S</kbd></button>
+        <button class="btn btn-next" data-fi="show" title="Hiện câu hỏi (Space)">Hiện câu hỏi <kbd>Space</kbd></button>
+        <button class="btn btn-correct" data-fi="correct" title="Trả lời đúng (C)">✓ Đúng <kbd>C</kbd></button>
+        <button class="btn btn-wrong" data-fi="wrong" title="Trả lời sai (X)">✗ Sai <kbd>X</kbd></button>
+        <button class="btn btn-ctl" data-fi="reveal" title="Hiện đáp án (Space) — sai sau đó sẽ không có cướp điểm">Hiện đáp án <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-fi="nosteal" title="Không ai giơ tay (Space)">Không ai cướp điểm <kbd>Space</kbd></button>
+        <button class="btn btn-next" data-fi="next">Câu tiếp › <kbd>Space</kbd></button>
+        <button class="btn btn-ctl" data-fi="undo" title="Hoàn tác thao tác gần nhất (U)">↶ Hoàn tác <kbd>U</kbd></button>
+      </div>
+      <div class="row">
+        <button class="btn btn-icon" data-fi="pause" id="fi-btn-pause" title="Dừng / tiếp tục đồng hồ (T)"></button>
+        <button class="btn btn-icon" data-fi="reset" title="Đặt lại đồng hồ (R)"></button>
+        <button class="btn btn-icon" data-fi="mute" title="Bật / tắt âm thanh (M)" data-mute-btn></button>
+        <button class="btn btn-icon" data-fi="fullscreen" title="Toàn màn hình (F)"></button>
+        <button class="btn btn-icon" data-fi="help" title="Phím tắt (?)">?</button>
+        <button class="btn btn-icon" data-fi="exit" title="Về trang chủ">✕</button>
+      </div>
+    </footer>
+  </section>
+
   <!-- ============ RESULTS ============ -->
   <section id="screen-results" class="screen results" hidden>
     <div class="results-inner">
@@ -414,6 +494,18 @@
         <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>Dừng–tiếp tục / đặt lại đồng hồ</dd>
         <dt><kbd>F</kbd> / <kbd>M</kbd></dt><dd>Toàn màn hình / âm thanh (cả video)</dd>
       </dl>
+      <dl class="keys" id="help-finish" hidden>
+        <dt><kbd>1</kbd>–<kbd>3</kbd></dt><dd><b>Khi chọn gói:</b> đổi câu 1–3 giữa 20 và 30 điểm</dd>
+        <dt><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>3</kbd></dt><dd><b>Khi chọn gói:</b> đặt / bỏ Ngôi sao hy vọng</dd>
+        <dt><kbd>S</kbd></dt><dd>Ngôi sao hy vọng cho câu sắp hiện</dd>
+        <dt><kbd>Space</kbd> <kbd>→</kbd></dt><dd>Bắt đầu lượt · hiện câu hỏi · hiện đáp án · không ai cướp điểm · câu tiếp</dd>
+        <dt><kbd>C</kbd> / <kbd>X</kbd></dt><dd>Trả lời đúng / sai (cả khi cướp điểm)</dd>
+        <dt><kbd>1</kbd>–<kbd>6</kbd></dt><dd><b>Khi cướp điểm:</b> thí sinh giơ tay đầu tiên</dd>
+        <dt><kbd>←</kbd></dt><dd>Huỷ người cướp điểm · quay lại kết quả vòng trước</dd>
+        <dt><kbd>U</kbd> <kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Hoàn tác thao tác gần nhất</dd>
+        <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>Dừng–tiếp tục / đặt lại đồng hồ</dd>
+        <dt><kbd>F</kbd> / <kbd>M</kbd></dt><dd>Toàn màn hình / âm thanh</dd>
+      </dl>
       <div class="row center"><button id="help-close" class="btn btn-primary">Đóng <kbd>Esc</kbd></button></div>
     </div>
   </div>
@@ -444,18 +536,33 @@
     </div>
   </div>
 
+  <div id="fi-steal-dialog" class="overlay buzz-overlay" hidden>
+    <div class="panel buzz-panel" role="dialog" aria-labelledby="fi-steal-name">
+      <div class="eyebrow">Cướp điểm</div>
+      <div id="fi-steal-name" class="buzz-name"></div>
+      <div id="fi-steal-value" class="buzz-value"></div>
+      <div class="row center">
+        <button id="fi-steal-correct" class="btn btn-correct btn-lg">✓ Đúng <kbd>C</kbd></button>
+        <button id="fi-steal-wrong" class="btn btn-wrong btn-lg">✗ Sai <kbd>X</kbd></button>
+        <button id="fi-steal-cancel" class="btn btn-ghost btn-lg">Huỷ <kbd>←</kbd></button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/obstacle.js"></script>
   <script src="js/accel.js"></script>
+  <script src="js/finish.js"></script>
   <script src="js/data.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sound.js"></script>
   <script src="js/confetti.js"></script>
   <script src="js/obstacle-ui.js"></script>
   <script src="js/accel-ui.js"></script>
+  <script src="js/finish-ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

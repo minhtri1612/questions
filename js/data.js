@@ -5,11 +5,14 @@
  * Quiz shape:
  *   { id, settings: { title, seconds, points, questionsPerContestant,
  *                     obstacleSeconds, obstacleRowPoints, keywordPoints[5],
- *                     accelSeconds[4], accelPoints[4] },
+ *                     accelSeconds[4], accelPoints[4],
+ *                     finishSeconds[2], finishPoints[2], finishStealSeconds },
  *     contestants: [ { name, questions: [ { question, answer, image } ] } ],
  *     obstacle: null | { keyword, image, rows: [4 × { question, answer, boxes }],
  *                        center: { question, answer, boxes } },
- *     accel: null | { questions: [4 × { question, answer, media, seconds }] } }
+ *     accel: null | { questions: [4 × { question, answer, media, seconds }] },
+ *     finish: null | { turns: [one per contestant × { slots: [3 × { versions: [low, high], image }] }] } }
+ * Each Finish `versions` entry is { question, answer }: [0] for the low value (20), [1] for the high (30).
  * `image` is '' | a path relative to index.html | a URL | a data: URL.
  * `media` is an image like `image`, or a video: a path / URL to .mp4/.webm, or
  * 'idb:<id>' for a video picked in the editor (stored apart in IndexedDB, see storage.js).
@@ -29,6 +32,9 @@
     keywordPoint: [0, 1000],
     accelSecond: [5, 300],
     accelPoint: [0, 1000],
+    finishSecond: [5, 300],
+    finishPoint: [1, 1000],
+    finishStealSeconds: [2, 60],
   };
 
   const OBSTACLE_ROWS = 4;
@@ -36,6 +42,7 @@
   // question is scored nobody can guess any more; the teacher just opens the keyword.
   const KEYWORD_STAGES = ['Trước hàng 1', 'Sau 1 hàng', 'Sau 2 hàng', 'Sau 3 hàng', 'Sau 4 hàng'];
   const ACCEL_QUESTIONS = 4;
+  const FINISH_SLOTS = 3;
 
   const DEFAULT_SETTINGS = {
     title: 'Thử thách tri thức',
@@ -47,6 +54,9 @@
     keywordPoints: [70, 60, 50, 40, 30],
     accelSeconds: [10, 20, 30, 40], // question 1–4
     accelPoints: [40, 30, 20, 10], // fastest correct, 2nd, 3rd, 4th
+    finishSeconds: [15, 20], // low-value question, high-value question
+    finishPoints: [20, 30],
+    finishStealSeconds: 5,
   };
 
   const HEADERS = ['Thí sinh', 'Câu', 'Câu hỏi', 'Đáp án', 'Hình ảnh (tùy chọn)'];
@@ -61,11 +71,16 @@
     keywordPoints: 'Điểm từ khóa',
     accelSeconds: 'Số giây vòng Tăng tốc',
     accelPoints: 'Điểm vòng Tăng tốc',
+    finishSeconds: 'Số giây Về đích',
+    finishPoints: 'Điểm Về đích',
+    finishStealSeconds: 'Số giây cướp điểm',
   };
   const OBSTACLE_SHEET = 'Vượt chướng ngại vật';
   const OBSTACLE_HEADERS = ['Mục', 'Câu hỏi', 'Đáp án', 'Hình ảnh', 'Ô chữ (tùy chọn)'];
   const ACCEL_SHEET = 'Tăng tốc';
   const ACCEL_HEADERS = ['Câu', 'Câu hỏi', 'Đáp án', 'Hình ảnh/Video', 'Thời gian'];
+  const FINISH_SHEET = 'Về đích';
+  const FINISH_HEADERS = ['Thí sinh', 'Câu', 'Câu hỏi 20', 'Đáp án 20', 'Câu hỏi 30', 'Đáp án 30', 'Hình ảnh (tùy chọn)'];
 
   // Header / setting names are matched after stripping diacritics, case and
   // punctuation, so "Đáp án", "dap an" and "ĐÁP ÁN" all work.
@@ -86,6 +101,9 @@
     keywordPoints: ['diemtukhoa', 'diemchuongngaivat', 'diemtukhoatheoluot'],
     accelSeconds: ['sogiayvongtangtoc', 'sogiaytangtoc', 'thoigiantangtoc', 'thoigianvongtangtoc'],
     accelPoints: ['diemvongtangtoc', 'diemtangtoc'],
+    finishSeconds: ['sogiayvedich', 'sogiayvongvedich', 'thoigianvedich', 'thoigianvongvedich'],
+    finishPoints: ['diemvedich', 'diemvongvedich'],
+    finishStealSeconds: ['sogiaycuopdiem', 'thoigiancuopdiem', 'sogiaygianhquyen'],
   };
   const OBSTACLE_COLUMNS = {
     item: ['muc', 'loai', 'phan', 'vitri', 'item'],
@@ -100,6 +118,15 @@
     answer: COLUMN_ALIASES.answer,
     media: COLUMN_ALIASES.image.concat(['hinhanhvideo', 'hinhanhhoacvideo', 'anhvideo', 'video', 'media', 'tep']),
     seconds: ['thoigian', 'thoigiangiay', 'sogiay', 'giay', 'time', 'seconds'],
+  };
+  const FINISH_COLUMNS = {
+    name: COLUMN_ALIASES.name,
+    num: COLUMN_ALIASES.num,
+    q0: ['cauhoi20', 'cauhoi20diem', 'cauhoigoi20', 'question20'],
+    a0: ['dapan20', 'dapan20diem', 'answer20'],
+    q1: ['cauhoi30', 'cauhoi30diem', 'cauhoigoi30', 'question30'],
+    a1: ['dapan30', 'dapan30diem', 'answer30'],
+    image: COLUMN_ALIASES.image,
   };
 
   const SAMPLE = {
@@ -159,6 +186,29 @@
       ['Sắp xếp các hành tinh sau theo thứ tự từ gần đến xa Mặt Trời: Sao Hỏa, Sao Kim, Trái Đất, Sao Thủy.', 'Sao Thủy, Sao Kim, Trái Đất, Sao Hỏa'],
       ['Tìm số tiếp theo của dãy số: 1, 1, 2, 3, 5, 8, 13, …', '21'],
     ],
+    // One turn per sample contestant: 3 × [20-point question, answer, 30-point question, answer, image?]
+    finish: [
+      [
+        ['Con vật nào được mệnh danh là "chúa sơn lâm"?', 'Con hổ', 'Loài chim nào không biết bay nhưng chạy nhanh nhất thế giới?', 'Đà điểu'],
+        ['Một tuần có bao nhiêu ngày?', '7 ngày', 'Một giờ có bao nhiêu giây?', '3.600 giây'],
+        ['Thủ đô của Nhật Bản là thành phố nào?', 'Tokyo', 'Thủ đô của Úc là thành phố nào?', 'Canberra'],
+      ],
+      [
+        ['Kim loại nào ở thể lỏng ở nhiệt độ phòng?', 'Thủy ngân', 'Kí hiệu hóa học của vàng là gì?', 'Au'],
+        ['Tam giác có ba cạnh bằng nhau gọi là tam giác gì?', 'Tam giác đều', 'Tổng ba góc trong một tam giác bằng bao nhiêu độ?', '180 độ'],
+        ['Ai là tác giả bài thơ "Bánh trôi nước"?', 'Hồ Xuân Hương', 'Tác phẩm "Dế Mèn phiêu lưu ký" là của nhà văn nào?', 'Tô Hoài'],
+      ],
+      [
+        ['Hành tinh nào lớn nhất trong Hệ Mặt Trời?', 'Sao Mộc', 'Hành tinh nào được gọi là "hành tinh đỏ"?', 'Sao Hỏa'],
+        ['Hình bên có bao nhiêu đỉnh?', '6 đỉnh', 'Hình bên có bao nhiêu đường chéo?', '9 đường chéo', 'images/vi-du-luc-giac.svg'],
+        ['Châu lục nào có diện tích lớn nhất?', 'Châu Á', 'Sa mạc Sahara nằm ở châu lục nào?', 'Châu Phi'],
+      ],
+      [
+        ['Bộ phận nào của cây hút nước và muối khoáng từ đất?', 'Rễ cây', 'Quá trình cây xanh dùng ánh sáng để tạo ra chất hữu cơ gọi là gì?', 'Quang hợp'],
+        ['Ngôi sao trên Quốc kỳ Việt Nam có màu gì?', 'Màu vàng', 'Bài hát "Tiến quân ca" là của nhạc sĩ nào?', 'Văn Cao'],
+        ['Ở áp suất tiêu chuẩn, nước đóng băng ở bao nhiêu độ C?', '0 °C', 'Đơn vị đo cường độ dòng điện là gì?', 'Ampe (A)'],
+      ],
+    ],
   };
 
   function newId() {
@@ -188,8 +238,18 @@
     return { questions: SAMPLE.accel.map(([question, answer, media]) => ({ question, answer, media: media || '', seconds: null })) };
   }
 
+  /** Sample Finish turns for n contestants (the 4 sample turns, repeated if there are more). */
+  function sampleFinish(n = SAMPLE.finish.length) {
+    const slot = ([q0, a0, q1, a1, image]) => ({ versions: [{ question: q0, answer: a0 }, { question: q1, answer: a1 }], image: image || '' });
+    return { turns: Array.from({ length: n }, (_, i) => ({ slots: SAMPLE.finish[i % SAMPLE.finish.length].map(slot) })) };
+  }
+
+  const LIST_SETTINGS = ['keywordPoints', 'accelSeconds', 'accelPoints', 'finishSeconds', 'finishPoints'];
+
   function copySettings(st) {
-    return { ...st, keywordPoints: st.keywordPoints.slice(), accelSeconds: st.accelSeconds.slice(), accelPoints: st.accelPoints.slice() };
+    const out = { ...st };
+    for (const field of LIST_SETTINGS) out[field] = st[field].slice();
+    return out;
   }
 
   function sampleQuiz() {
@@ -202,6 +262,7 @@
       })),
       obstacle: sampleObstacle(),
       accel: sampleAccel(),
+      finish: sampleFinish(SAMPLE.contestants.length),
     };
   }
 
@@ -220,6 +281,18 @@
 
   function emptyAccel() {
     return { questions: Array.from({ length: ACCEL_QUESTIONS }, emptyAccelQuestion) };
+  }
+
+  function emptyFinishSlot() {
+    return { versions: [{ question: '', answer: '' }, { question: '', answer: '' }], image: '' };
+  }
+
+  function emptyFinishTurn() {
+    return { slots: Array.from({ length: FINISH_SLOTS }, emptyFinishSlot) };
+  }
+
+  function emptyFinish(nContestants) {
+    return { turns: Array.from({ length: nContestants }, emptyFinishTurn) };
   }
 
   /** 'video' | 'image' | '' — decided by the source, since a path doesn't say more. */
@@ -278,7 +351,7 @@
     if (Array.isArray(st.keywordPoints) && st.keywordPoints.length === KEYWORD_STAGES.length + 1) {
       st.keywordPoints = st.keywordPoints.slice(0, KEYWORD_STAGES.length); // drop the old "after the center question" value
     }
-    for (const field of ['keywordPoints', 'accelSeconds', 'accelPoints']) {
+    for (const field of LIST_SETTINGS) {
       if (!Array.isArray(st[field]) || st[field].length !== DEFAULT_SETTINGS[field].length) st[field] = DEFAULT_SETTINGS[field].slice();
     }
     quiz.settings = st;
@@ -306,7 +379,21 @@
             })),
           }
         : null;
+    quiz.finish = quiz.finish && Array.isArray(quiz.finish.turns) ? normalizeFinish(quiz.finish, (quiz.contestants || []).length) : null;
     return quiz;
+  }
+
+  /** One turn per contestant, at least 3 slots each, every field present. */
+  function normalizeFinish(fin, nContestants) {
+    const text = (x) => ({ question: (x && x.question) || '', answer: (x && x.answer) || '' });
+    const slot = (x) => ({ versions: [0, 1].map((v) => text(x && x.versions && x.versions[v])), image: (x && x.image) || '' });
+    return {
+      turns: Array.from({ length: nContestants }, (_, i) => {
+        const slots = ((fin.turns[i] && fin.turns[i].slots) || []).map(slot);
+        while (slots.length < FINISH_SLOTS) slots.push(emptyFinishSlot());
+        return { slots };
+      }),
+    };
   }
 
   function clampInt(value, [min, max], fallback) {
@@ -417,10 +504,14 @@
         keywordPoints: s.keywordPoints != null ? parseKeywordPoints(s.keywordPoints, errors) : DEFAULT_SETTINGS.keywordPoints.slice(),
         accelSeconds: s.accelSeconds != null ? parseNumberList('accelSeconds', LIMITS.accelSecond, s.accelSeconds, errors) : DEFAULT_SETTINGS.accelSeconds.slice(),
         accelPoints: s.accelPoints != null ? parseNumberList('accelPoints', LIMITS.accelPoint, s.accelPoints, errors) : DEFAULT_SETTINGS.accelPoints.slice(),
+        finishSeconds: s.finishSeconds != null ? parseNumberList('finishSeconds', LIMITS.finishSecond, s.finishSeconds, errors) : DEFAULT_SETTINGS.finishSeconds.slice(),
+        finishPoints: s.finishPoints != null ? parseNumberList('finishPoints', LIMITS.finishPoint, s.finishPoints, errors) : DEFAULT_SETTINGS.finishPoints.slice(),
+        finishStealSeconds: setting('finishStealSeconds'),
       },
       contestants,
       obstacle: null,
       accel: null,
+      finish: null,
     };
     const parts = validateParts(quiz, { skipEmptyText: true });
     return { quiz, errors: errors.concat(parts.common, parts.warmup), warnings };
@@ -518,8 +609,78 @@
   }
 
   /**
+   * The "Về đích" sheet → { finish | null, errors }. Rows belong to round 1's contestants by
+   * name; turns are stored in contestant order so renaming in the editor keeps them.
+   */
+  function parseFinishRows(rows, names) {
+    const errors = [];
+    const where = (line) => `Trang "${FINISH_SHEET}", dòng ${line}`;
+    let headerRow = -1;
+    const cols = {};
+    for (let r = 0; r < Math.min(rows.length, 15) && headerRow < 0; r++) {
+      const found = {};
+      rows[r].forEach((v, i) => {
+        const n = norm(v);
+        for (const [field, aliases] of Object.entries(FINISH_COLUMNS)) {
+          if (found[field] == null && aliases.includes(n)) found[field] = i;
+        }
+      });
+      if (found.name != null && found.q0 != null && found.a0 != null) {
+        headerRow = r;
+        Object.assign(cols, found);
+      }
+    }
+    if (headerRow < 0) {
+      const empty = rows.every((row) => row.every((v) => cell(v) === ''));
+      return {
+        finish: null,
+        errors: empty ? [] : [`Trang "${FINISH_SHEET}" cần các cột "Thí sinh", "Câu hỏi 20", "Đáp án 20", "Câu hỏi 30", "Đáp án 30" (xem tệp mẫu).`],
+      };
+    }
+
+    const byContestant = names.map(() => []);
+    const indexOf = (name) => {
+      const exact = names.findIndex((n) => n.trim() === name);
+      return exact >= 0 ? exact : names.findIndex((n) => norm(n) === norm(name));
+    };
+    let any = false;
+    let lastName = '';
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const get = (f) => (cols[f] == null ? '' : cell(rows[r][cols[f]]));
+      const fields = ['q0', 'a0', 'q1', 'a1', 'image'].map(get);
+      const rawName = get('name');
+      if (!rawName && fields.every((x) => !x)) continue; // blank row
+      any = true;
+      // A blank name means "same contestant as the row above" (handy with merged cells).
+      const name = rawName || lastName;
+      if (!name) {
+        errors.push(`${where(r + 1)}: chưa có tên thí sinh.`);
+        continue;
+      }
+      lastName = name;
+      const c = indexOf(name);
+      if (c < 0) {
+        errors.push(`${where(r + 1)}: không có thí sinh "${name}" ở vòng Khởi động.`);
+        continue;
+      }
+      const [q0, a0, q1, a1, image] = fields;
+      byContestant[c].push({
+        num: parseFloat(get('num')),
+        slot: { versions: [{ question: q0, answer: a0 }, { question: q1, answer: a1 }], image },
+      });
+    }
+    if (!any) return { finish: null, errors };
+    const turns = byContestant.map((list) => {
+      // Respect the "Câu" column if every row has a number; otherwise keep row order.
+      const ordered = list.every((x) => Number.isFinite(x.num)) ? list.slice().sort((a, b) => a.num - b.num) : list;
+      return { slots: ordered.map((x) => x.slot) };
+    });
+    return { finish: { turns }, errors };
+  }
+
+  /**
    * Checks split by where they matter: `common` (contestants) blocks every round,
-   * `warmup` / `obstacle` / `accel` only block starting that round.
+   * `warmup` / `obstacle` / `accel` / `finish` only block starting that round.
    */
   function validateParts(quiz, opts = {}) {
     const common = [];
@@ -550,6 +711,7 @@
       warmup,
       obstacle: quiz.obstacle ? validateObstacle(quiz.obstacle) : [],
       accel: quiz.accel ? validateAccel(quiz.accel) : [],
+      finish: quiz.finish ? validateFinish(quiz.finish, contestants, settings) : [],
     };
   }
 
@@ -578,18 +740,44 @@
     return errors;
   }
 
-  /** Errors that block starting `round` ('warmup' | 'obstacle' | 'accel'). */
+  function validateFinish(fin, contestants, settings) {
+    const errors = [];
+    const pts = settings.finishPoints;
+    contestants.forEach((c, i) => {
+      const label = c.name.trim() ? `Về đích, thí sinh "${c.name}"` : `Về đích, thí sinh ${i + 1}`;
+      const turn = fin.turns[i];
+      if (!turn) {
+        errors.push(`${label}: chưa có câu hỏi.`);
+        return;
+      }
+      if (turn.slots.length !== FINISH_SLOTS) errors.push(`${label}: có ${turn.slots.length} câu, cần đúng ${FINISH_SLOTS} câu.`);
+      turn.slots.forEach((slot, j) => {
+        slot.versions.forEach((v, k) => {
+          if (!v.question.trim()) errors.push(`${label}, câu ${j + 1} (${pts[k]} điểm): chưa có câu hỏi.`);
+          if (!v.answer.trim()) errors.push(`${label}, câu ${j + 1} (${pts[k]} điểm): chưa có đáp án.`);
+        });
+      });
+    });
+    return errors;
+  }
+
+  const ROUND_MISSING = {
+    obstacle: 'Bộ câu hỏi chưa có vòng Vượt chướng ngại vật.',
+    accel: 'Bộ câu hỏi chưa có vòng Tăng tốc.',
+    finish: 'Bộ câu hỏi chưa có vòng Về đích.',
+  };
+
+  /** Errors that block starting `round` ('warmup' | 'obstacle' | 'accel' | 'finish'). */
   function roundErrors(quiz, round) {
     const p = validateParts(quiz);
-    if (round === 'obstacle' && !quiz.obstacle) return p.common.concat(['Bộ câu hỏi chưa có vòng Vượt chướng ngại vật.']);
-    if (round === 'accel' && !quiz.accel) return p.common.concat(['Bộ câu hỏi chưa có vòng Tăng tốc.']);
+    if (round !== 'warmup' && !quiz[round]) return p.common.concat([ROUND_MISSING[round]]);
     return p.common.concat(p[round]);
   }
 
   /** All errors (every round present in the quiz). */
   function validate(quiz, opts = {}) {
     const p = validateParts(quiz, opts);
-    return p.common.concat(p.warmup, p.obstacle, p.accel);
+    return p.common.concat(p.warmup, p.obstacle, p.accel, p.finish);
   }
 
   function sheetRows(ws) {
@@ -601,7 +789,8 @@
     const settingsName = names.find((n) => ['caidat', 'settings'].includes(norm(n)));
     const obstacleName = names.find((n) => ['vuotchuongngaivat', 'vcnv', 'obstacle', 'chuongngaivat'].includes(norm(n)));
     const accelName = names.find((n) => ['tangtoc', 'vongtangtoc', 'accel', 'acceleration'].includes(norm(n)));
-    const skip = (n) => n === settingsName || n === obstacleName || n === accelName;
+    const finishName = names.find((n) => ['vedich', 'vongvedich', 'finish'].includes(norm(n)));
+    const skip = (n) => n === settingsName || n === obstacleName || n === accelName || n === finishName;
     const questionName = names.find((n) => !skip(n) && findColumns(sheetRows(wb.Sheets[n]))) || names.find((n) => !skip(n)) || names[0];
     const settingsRows = settingsName ? sheetRows(wb.Sheets[settingsName]) : [];
     const result = parseRows(sheetRows(wb.Sheets[questionName]), settingsRows);
@@ -614,6 +803,12 @@
       const ac = parseAccelRows(sheetRows(wb.Sheets[accelName]));
       result.quiz.accel = ac.accel;
       result.errors = result.errors.concat(ac.errors, ac.accel ? validateAccel(ac.accel) : []);
+    }
+    if (result.quiz && finishName) {
+      const q = result.quiz;
+      const fi = parseFinishRows(sheetRows(wb.Sheets[finishName]), q.contestants.map((c) => c.name));
+      q.finish = fi.finish;
+      result.errors = result.errors.concat(fi.errors, fi.finish ? validateFinish(fi.finish, q.contestants, q.settings) : []);
     }
     return result;
   }
@@ -670,6 +865,17 @@
     return [ACCEL_HEADERS].concat(acc.questions.map((q, i) => [i + 1, q.question, q.answer, exportImage(q.media), q.seconds || '']));
   }
 
+  function finishRows(fin, contestants) {
+    const rows = [FINISH_HEADERS];
+    contestants.forEach((c, i) =>
+      fin.turns[i].slots.forEach((s, j) => {
+        const [low, high] = s.versions;
+        rows.push([c.name, j + 1, low.question, low.answer, high.question, high.answer, exportImage(s.image)]);
+      })
+    );
+    return rows;
+  }
+
   function buildWorkbook(quiz) {
     const X = root.XLSX;
     const wb = X.utils.book_new();
@@ -686,6 +892,11 @@
       ac['!cols'] = [{ wch: 6 }, { wch: 60 }, { wch: 30 }, { wch: 28 }, { wch: 10 }];
       X.utils.book_append_sheet(wb, ac, ACCEL_SHEET);
     }
+    if (quiz.finish) {
+      const fi = X.utils.aoa_to_sheet(finishRows(quiz.finish, quiz.contestants));
+      fi['!cols'] = [{ wch: 22 }, { wch: 6 }, { wch: 50 }, { wch: 24 }, { wch: 50 }, { wch: 24 }, { wch: 28 }];
+      X.utils.book_append_sheet(wb, fi, FINISH_SHEET);
+    }
     const st = quiz.settings;
     const settings = X.utils.aoa_to_sheet([
       ['Cài đặt', 'Giá trị', 'Ghi chú'],
@@ -698,6 +909,9 @@
       [SETTINGS_LABELS.keywordPoints, st.keywordPoints.join(', '), 'Lần lượt: ' + KEYWORD_STAGES.join(', ').toLowerCase()],
       [SETTINGS_LABELS.accelSeconds, st.accelSeconds.join(', '), 'Vòng Tăng tốc · câu 1, 2, 3, 4 (cột "Thời gian" của từng câu được ưu tiên)'],
       [SETTINGS_LABELS.accelPoints, st.accelPoints.join(', '), 'Vòng Tăng tốc · người đúng nhanh nhất, nhì, ba, tư'],
+      [SETTINGS_LABELS.finishSeconds, st.finishSeconds.join(', '), 'Vòng Về đích · câu gói thấp, câu gói cao'],
+      [SETTINGS_LABELS.finishPoints, st.finishPoints.join(', '), 'Vòng Về đích · gói thấp, gói cao (cột "Câu hỏi 20" / "Câu hỏi 30")'],
+      [SETTINGS_LABELS.finishStealSeconds, st.finishStealSeconds, 'Vòng Về đích · thời gian giơ tay cướp điểm'],
     ]);
     settings['!cols'] = [{ wch: 24 }, { wch: 24 }, { wch: 70 }];
     X.utils.book_append_sheet(wb, settings, SETTINGS_SHEET);
@@ -720,14 +934,19 @@
     HEADERS,
     KEYWORD_STAGES,
     ACCEL_QUESTIONS,
+    FINISH_SLOTS,
     newId,
     sampleQuiz,
     sampleObstacle,
     sampleAccel,
+    sampleFinish,
     emptyQuestion,
     emptyObstacle,
     emptyAccel,
     emptyAccelQuestion,
+    emptyFinish,
+    emptyFinishTurn,
+    emptyFinishSlot,
     mediaKind,
     normalizeQuiz,
     letterize,
@@ -739,6 +958,7 @@
     parseRows,
     parseObstacleRows,
     parseAccelRows,
+    parseFinishRows,
     parseWorkbook,
     parseCsvText,
     parseFile,
@@ -747,10 +967,12 @@
     validateParts,
     validateObstacle,
     validateAccel,
+    validateFinish,
     roundErrors,
     questionRows,
     obstacleRows,
     accelRows,
+    finishRows,
     buildWorkbook,
     toCsv,
   };

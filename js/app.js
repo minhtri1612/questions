@@ -1,12 +1,14 @@
 /*
  * UI controller: screens (home → editor → Warm-up → results → Obstacle → results →
- * Acceleration → final results), keyboard shortcuts, the Warm-up countdown and
- * persistence wiring. Quiz rules live in quiz.js / obstacle.js / accel.js; the
- * Obstacle and Acceleration screens live in obstacle-ui.js / accel-ui.js.
+ * Acceleration → results → Finish → final results), keyboard shortcuts, the Warm-up
+ * countdown and persistence wiring. Quiz rules live in quiz.js / obstacle.js /
+ * accel.js / finish.js; the later rounds' screens live in obstacle-ui.js /
+ * accel-ui.js / finish-ui.js.
  *
  * One session object covers the whole game: the Warm-up fields (quiz.js) plus
- * `round` ('warmup' | 'obstacle' | 'accel'), `obstacle` (obstacle.js state) and
- * `accel` (accel.js state). Each round's results screen shows the running total.
+ * `round` ('warmup' | 'obstacle' | 'accel' | 'finish'), `obstacle` (obstacle.js state),
+ * `accel` (accel.js state) and `finish` (finish.js state). Each round's results screen
+ * shows the running total.
  */
 (function () {
   'use strict';
@@ -14,6 +16,7 @@
   const E = window.QuizEngine;
   const O = window.ObstacleEngine;
   const A = window.AccelEngine;
+  const F = window.FinishEngine;
   const D = window.QuizData;
   const S = window.Sound;
   const Store = window.Store;
@@ -28,6 +31,7 @@
   S.setMuted(app.prefs.muted);
   let OB = null; // Obstacle round UI, created at init
   let AC = null; // Acceleration round UI, created at init
+  let FI = null; // Finish round UI, created at init
 
   /* =========================================================
      Helpers
@@ -92,6 +96,7 @@
     if (name !== 'present') stopTimerLoop();
     if (name !== 'obstacle' && OB) OB.leave();
     if (name !== 'accel' && AC) AC.leave();
+    if (name !== 'finish' && FI) FI.leave();
     if (name !== 'results') {
       clearReveal();
       Confetti.stop();
@@ -111,9 +116,9 @@
 
   /* ---------------- rounds ---------------- */
 
-  const ROUND_ORDER = ['warmup', 'obstacle', 'accel'];
-  const ROUND_NUM = { warmup: 1, obstacle: 2, accel: 3 };
-  const ROUND_NAME = { warmup: 'Khởi động', obstacle: 'Vượt chướng ngại vật', accel: 'Tăng tốc' };
+  const ROUND_ORDER = ['warmup', 'obstacle', 'accel', 'finish'];
+  const ROUND_NUM = { warmup: 1, obstacle: 2, accel: 3, finish: 4 };
+  const ROUND_NAME = { warmup: 'Khởi động', obstacle: 'Vượt chướng ngại vật', accel: 'Tăng tốc', finish: 'Về đích' };
 
   /** Rounds this quiz has, in playing order. */
   function rounds() {
@@ -129,7 +134,7 @@
     return r === 'warmup' ? s.phase === 'results' : !!s[r] && s[r].phase === 'results';
   }
 
-  /** The round before round 3 whose results the Acceleration intro can go back to. */
+  /** The round before this one whose results the round 3 / 4 intro can go back to. */
   function previousRound() {
     const s = app.session;
     const rs = rounds();
@@ -145,12 +150,17 @@
     return (
       E.isCompatible(s, app.quiz) &&
       (s.round !== 'obstacle' || O.isCompatible(s.obstacle, app.quiz)) &&
-      (s.round !== 'accel' || !s.obstacle || O.isCompatible(s.obstacle, app.quiz))
+      (s.round === 'warmup' || s.round === 'obstacle' || !s.obstacle || O.isCompatible(s.obstacle, app.quiz))
     );
   }
 
-  /** Round 3 was edited or removed since the save: keep the earlier rounds' points. */
+  /** Round 3 or 4 was edited or removed since the save: keep the earlier rounds' points. */
   function repairSession(s) {
+    if (s.round === 'finish') {
+      if (!app.quiz.finish) s = { ...s, round: s.accel ? 'accel' : s.obstacle ? 'obstacle' : 'warmup', finish: null };
+      else if (!F.isCompatible(s.finish, app.quiz)) s = { ...s, finish: F.createState(app.quiz) };
+    }
+    if (s.round === 'finish' && s.accel && !app.quiz.accel) s = { ...s, accel: null }; // round 3 was removed
     if (s.round !== 'accel') return s;
     if (!app.quiz.accel) return { ...s, round: s.obstacle ? 'obstacle' : 'warmup', accel: null };
     if (!A.isCompatible(s.accel, app.quiz)) return { ...s, accel: A.createState(app.quiz) };
@@ -180,6 +190,7 @@
     if (r === 'warmup') return E.scores(s, app.quiz);
     if (r === 'obstacle' && s.obstacle) return O.scores(s.obstacle, app.quiz);
     if (r === 'accel' && s.accel && app.quiz.accel) return A.scores(s.accel, app.quiz);
+    if (r === 'finish' && s.finish && app.quiz.finish) return F.scores(s.finish, app.quiz);
     return app.quiz.contestants.map(() => 0);
   }
 
@@ -205,6 +216,13 @@
   function enterAccel(base) {
     const s = { ...(base || E.createSession(app.quiz)), round: 'accel' };
     if (!s.accel || !A.isCompatible(s.accel, app.quiz)) s.accel = A.createState(app.quiz);
+    return s;
+  }
+
+  /** Session for round 4, keeping whatever round 1–3 results `base` has. */
+  function enterFinish(base) {
+    const s = { ...(base || E.createSession(app.quiz)), round: 'finish' };
+    if (!s.finish || !F.isCompatible(s.finish, app.quiz)) s.finish = F.createState(app.quiz);
     return s;
   }
 
@@ -248,9 +266,10 @@
   function toggleHelp(show) {
     const h = $('help');
     h.hidden = show == null ? !h.hidden : !show;
-    $('help-warmup').hidden = app.screen === 'obstacle' || app.screen === 'accel';
+    $('help-warmup').hidden = ['obstacle', 'accel', 'finish'].includes(app.screen);
     $('help-obstacle').hidden = app.screen !== 'obstacle';
     $('help-accel').hidden = app.screen !== 'accel';
+    $('help-finish').hidden = app.screen !== 'finish';
   }
 
   /* ---------------- scoreboard tiles (shared by both rounds) ---------------- */
@@ -357,12 +376,14 @@
     const st = settings();
     const hasOb = !!app.quiz.obstacle;
     const hasAc = !!app.quiz.accel;
+    const hasFi = !!app.quiz.finish;
     box.hidden = false;
     $('home-resume-title').textContent = st.title;
     $('home-resume-meta').textContent =
       `${app.quiz.contestants.length} thí sinh · Khởi động: ${st.questionsPerContestant} câu mỗi thí sinh, ${st.seconds} giây/câu` +
       (hasOb ? ` · Vượt chướng ngại vật: từ khóa ${D.letterCount(D.letterize(app.quiz.obstacle.keyword))} chữ cái` : '') +
-      (hasAc ? ` · Tăng tốc: ${app.quiz.accel.questions.length} câu` : ' · Chưa có câu hỏi vòng 3');
+      (hasAc ? ` · Tăng tốc: ${app.quiz.accel.questions.length} câu` : ' · Chưa có câu hỏi vòng 3') +
+      (hasFi ? ' · Về đích: 3 câu mỗi thí sinh' : ' · Chưa có câu hỏi vòng 4');
 
     const s = savedSession();
     const progress = hasProgress(s);
@@ -374,7 +395,7 @@
     }
     const r1 = $('btn-round1');
     r1.className = 'btn btn-lg ' + (progress ? 'btn-ghost' : 'btn-primary');
-    r1.textContent = progress ? 'Bắt đầu lại từ vòng 1' : hasOb || hasAc ? 'Vòng 1 · Khởi động ▶' : 'Bắt đầu trình chiếu ▶';
+    r1.textContent = progress ? 'Bắt đầu lại từ vòng 1' : hasOb || hasAc || hasFi ? 'Vòng 1 · Khởi động ▶' : 'Bắt đầu trình chiếu ▶';
     r1.onclick = () => {
       if (progress && !confirm('Bắt đầu lại từ đầu? Cuộc thi đang lưu sẽ bị xoá.')) return;
       startRound('warmup', null);
@@ -389,6 +410,11 @@
     r3.textContent = hasAc ? 'Vòng 3 · Tăng tốc ▶' : '+ Thêm câu hỏi vòng 3';
     r3.title = hasAc ? '' : 'Chưa có câu hỏi vòng 3 — mở trình soạn để thêm';
     r3.onclick = hasAc ? startAccelFlow : () => openEditor('accel');
+    const r4 = $('btn-round4');
+    // Always shown too: without round 4 questions it opens the editor to add them.
+    r4.textContent = hasFi ? 'Vòng 4 · Về đích ▶' : '+ Thêm câu hỏi vòng 4';
+    r4.title = hasFi ? '' : 'Chưa có câu hỏi vòng 4 — mở trình soạn để thêm';
+    r4.onclick = hasFi ? startFinishFlow : () => openEditor('finish');
   }
 
   /**
@@ -397,10 +423,10 @@
    */
   function startObstacleFlow() {
     const s = savedSession();
-    if (s && (s.round === 'obstacle' || s.round === 'accel')) {
-      const msg = s.round === 'accel' ? 'Điểm vòng 2 và vòng 3 sẽ bị xoá' : 'Điểm vòng 2 sẽ bị xoá';
+    if (s && s.round !== 'warmup') {
+      const msg = { obstacle: 'Điểm vòng 2 sẽ bị xoá', accel: 'Điểm vòng 2 và vòng 3 sẽ bị xoá', finish: 'Điểm vòng 2, 3 và 4 sẽ bị xoá' }[s.round];
       if (!confirm(`Chơi lại vòng 2 từ đầu? ${msg}, điểm vòng 1 được giữ nguyên.`)) return false;
-      startRound(null, { ...s, round: 'obstacle', obstacle: O.createState(app.quiz), accel: null });
+      startRound(null, { ...s, round: 'obstacle', obstacle: O.createState(app.quiz), accel: null, finish: null });
     } else if (s && hasProgress(s) && !E.isComplete(s)) {
       if (!confirm('Vòng Khởi động chưa xong. Sang vòng 2 và giữ điểm vòng 1 hiện tại?')) return false;
       startRound(null, enterObstacle(s));
@@ -416,14 +442,33 @@
    */
   function startAccelFlow() {
     const s = savedSession();
-    if (s && s.round === 'accel') {
-      if (!confirm('Chơi lại vòng 3 từ đầu? Điểm vòng 3 sẽ bị xoá, điểm các vòng trước được giữ nguyên.')) return false;
-      startRound(null, { ...s, accel: A.createState(app.quiz) });
+    if (s && (s.round === 'accel' || s.round === 'finish')) {
+      const msg = s.round === 'finish' ? 'Điểm vòng 3 và vòng 4 sẽ bị xoá' : 'Điểm vòng 3 sẽ bị xoá';
+      if (!confirm(`Chơi lại vòng 3 từ đầu? ${msg}, điểm các vòng trước được giữ nguyên.`)) return false;
+      startRound(null, { ...s, round: 'accel', accel: A.createState(app.quiz), finish: null });
     } else if (s && hasProgress(s) && !roundDone(s, s.round)) {
       if (!confirm(`Vòng ${ROUND_NUM[s.round]} chưa xong. Sang vòng 3 và giữ điểm hiện tại?`)) return false;
       startRound(null, enterAccel(s));
     } else {
       startRound(null, enterAccel(s));
+    }
+    return true;
+  }
+
+  /**
+   * Start (or restart) round 4. Points from rounds 1–3 carry over from the
+   * saved game, however far those rounds got.
+   */
+  function startFinishFlow() {
+    const s = savedSession();
+    if (s && s.round === 'finish') {
+      if (!confirm('Chơi lại vòng 4 từ đầu? Điểm vòng 4 sẽ bị xoá, điểm các vòng trước được giữ nguyên.')) return false;
+      startRound(null, { ...s, finish: F.createState(app.quiz) });
+    } else if (s && hasProgress(s) && !roundDone(s, s.round)) {
+      if (!confirm(`Vòng ${ROUND_NUM[s.round]} chưa xong. Sang vòng 4 và giữ điểm hiện tại?`)) return false;
+      startRound(null, enterFinish(s));
+    } else {
+      startRound(null, enterFinish(s));
     }
     return true;
   }
@@ -550,8 +595,10 @@
     $('ed-pane-warmup').hidden = tab !== 'warmup';
     $('ed-pane-obstacle').hidden = tab !== 'obstacle';
     $('ed-pane-accel').hidden = tab !== 'accel';
+    $('ed-pane-finish').hidden = tab !== 'finish';
     if (tab === 'obstacle') OB.renderEditorPane($('ed-pane-obstacle'));
     if (tab === 'accel') AC.renderEditorPane($('ed-pane-accel'));
+    if (tab === 'finish') FI.renderEditorPane($('ed-pane-finish'));
     const many = rounds().length > 1;
     $('ed-start').textContent = tab !== 'warmup' || many ? `Bắt đầu vòng ${ROUND_NUM[tab]} ▶` : 'Bắt đầu trình chiếu ▶';
     $('ed-start').disabled = tab !== 'warmup' && !app.quiz[tab];
@@ -587,6 +634,7 @@
     badge('tab-warmup', p.common.length + p.warmup.length);
     badge('tab-obstacle', app.quiz.obstacle ? p.obstacle.length : 0);
     badge('tab-accel', app.quiz.accel ? p.accel.length : 0);
+    badge('tab-finish', app.quiz.finish ? p.finish.length : 0);
     return errors;
   }
 
@@ -628,6 +676,7 @@
           onclick: () => {
             if (hasContent() && !confirm(`Xoá thí sinh "${c.name || i + 1}" cùng các câu hỏi?`)) return;
             app.quiz.contestants.splice(i, 1);
+            if (app.quiz.finish) app.quiz.finish.turns.splice(i, 1); // round 4 turns follow the contestants
             renderContestants();
             edited(true);
           },
@@ -802,6 +851,7 @@
         name: '',
         questions: Array.from({ length: q.settings.questionsPerContestant }, D.emptyQuestion),
       });
+      if (q.finish) q.finish.turns.push(D.emptyFinishTurn());
       renderContestants();
       edited(true);
       const inputs = document.querySelectorAll('.ed-name');
@@ -815,7 +865,8 @@
       if (
         q.contestants.some((c) => c.questions.some((x) => pasted(x.image))) ||
         (q.obstacle && pasted(q.obstacle.image)) ||
-        (q.accel && q.accel.questions.some((x) => pasted(x.media)))
+        (q.accel && q.accel.questions.some((x) => pasted(x.media))) ||
+        (q.finish && q.finish.turns.some((t) => t.slots.some((x) => pasted(x.image))))
       ) {
         toast('Lưu ý: ảnh và video chọn từ máy chỉ lưu trong trình duyệt, không được ghi vào tệp Excel.', 4500);
       }
@@ -832,8 +883,9 @@
       }
       toggleFullscreen(true); // while still inside the click gesture
       await flushSave();
-      if (edTab === 'obstacle' || edTab === 'accel') {
-        if (!(edTab === 'obstacle' ? startObstacleFlow() : startAccelFlow())) toggleFullscreen(false);
+      if (edTab !== 'warmup') {
+        const flow = { obstacle: startObstacleFlow, accel: startAccelFlow, finish: startFinishFlow }[edTab];
+        if (!flow()) toggleFullscreen(false);
         return;
       }
       const s = savedSession();
@@ -861,12 +913,16 @@
     }
     S.unlock();
     toggleFullscreen(true);
-    if (!session) session = round === 'obstacle' ? enterObstacle(null) : round === 'accel' ? enterAccel(null) : E.createSession(app.quiz);
+    if (!session) {
+      const enter = { obstacle: enterObstacle, accel: enterAccel, finish: enterFinish }[round];
+      session = enter ? enter(null) : E.createSession(app.quiz);
+    }
     app.session = session;
     if (app.session.timer) app.session.timer.running = false; // resume paused after a refresh
     timer.key = null;
     OB.reset();
     AC.reset();
+    FI.reset();
     Store.saveSession(app.session);
     route();
   }
@@ -874,7 +930,11 @@
   /** Show whatever screen the session is on. */
   function route(opts = {}) {
     const s = app.session;
-    if (s.round === 'accel') {
+    if (s.round === 'finish') {
+      if (s.finish.phase === 'results') showResults('finish');
+      else if (app.screen !== 'finish') FI.show();
+      else FI.render(opts);
+    } else if (s.round === 'accel') {
       if (s.accel.phase === 'results') showResults('accel');
       else if (app.screen !== 'accel') AC.show();
       else AC.render(opts);
@@ -915,6 +975,8 @@
       OB.persistTimer(s);
     } else if (s.round === 'accel') {
       AC.persistTimer(s);
+    } else if (s.round === 'finish') {
+      FI.persistTimer(s);
     } else {
       s.timer = timer.key && s.phase === 'question' && timer.key === s.c + ':' + s.q
         ? { c: s.c, q: s.q, remainingMs: remainingMs(), running: timer.running, idle: timer.idle }
@@ -1360,10 +1422,10 @@
       toast(`Vòng ${ROUND_NUM[next]} còn lỗi — hãy sửa trước khi trình chiếu.`);
       return;
     }
-    commit(next === 'obstacle' ? enterObstacle(app.session) : enterAccel(app.session));
+    commit({ obstacle: enterObstacle, accel: enterAccel, finish: enterFinish }[next](app.session));
   }
 
-  /** From the round 3 intro back to the previous round's results. */
+  /** From the round 3 / 4 intro back to the previous round's results. */
   function backToPreviousResults() {
     const prev = previousRound();
     if (prev) commit({ ...app.session, round: prev });
@@ -1484,6 +1546,57 @@
     });
   }
 
+  /** Per-question result of round 4 for contestant c (own turn), then what they stole. */
+  function finishCells(fin, c) {
+    const cells = fin.results[c].map((r, q) => {
+      if (r.main == null) return { text: '', label: '' };
+      const v = F.points(fin, app.quiz, c, q);
+      const pts = F.mainPoints(fin, app.quiz, c, q);
+      const star = fin.star[c] === q ? ' ★' : '';
+      const about = `câu ${v} điểm` + (star ? ' · ngôi sao hy vọng' : '') + (r.steal === 'correct' ? ` · ${app.quiz.contestants[r.stealer].name} cướp điểm` : '');
+      if (r.main === 'correct') return { text: `+${pts}${star}`, cls: 'mark-correct', title: `Đúng · ${about}`, label: `Đúng (+${pts})${star}` };
+      return { text: star ? `−${-pts}${star}` : '✗', cls: 'mark-wrong', title: `Sai · ${about}`, label: (star ? `Sai (${pts})` : 'Sai') + star };
+    });
+    const stolen = F.stolenPoints(fin, app.quiz, c);
+    cells.push({ text: stolen ? `+${stolen}` : '', cls: stolen ? 'mark-correct' : '', title: 'Điểm cướp được ở lượt của bạn khác', label: stolen ? `+${stolen}` : '' });
+    return cells;
+  }
+
+  /** Column heads and per-contestant cells for one round's details (results table and CSV). */
+  function roundDetail(s, r) {
+    const label = { correct: 'Đúng', wrong: 'Sai', skipped: 'Bỏ qua' };
+    if (r === 'warmup') {
+      return {
+        heads: Array.from({ length: settings().questionsPerContestant }, (_, j) => `Câu ${j + 1}`),
+        labels: (c) => s.results[c].map((x) => label[x] || ''),
+      };
+    }
+    if (r === 'obstacle') {
+      const ob = s.obstacle;
+      return {
+        heads: [...SLOT_HEADS, 'Từ khóa'],
+        labels: (c) => [
+          ...obstacleMarks(ob, c).map((x) => label[x] || ''),
+          ob.winner === c ? `Đúng (+${ob.keywordPoints})` : ob.eliminated[c] ? 'Sai' : '',
+        ],
+      };
+    }
+    if (r === 'accel') {
+      return {
+        heads: s.accel.scored.map((_, q) => `Tăng tốc câu ${q + 1}`),
+        short: s.accel.scored.map((_, q) => `TT câu ${q + 1}`),
+        cells: (c) => accelCells(s.accel, c),
+        labels: (c) => accelCells(s.accel, c).map((x) => x.label),
+      };
+    }
+    return {
+      heads: [1, 2, 3].map((q) => `Về đích câu ${q}`).concat('Cướp điểm'),
+      short: [1, 2, 3].map((q) => `VĐ câu ${q}`).concat('Cướp điểm'),
+      cells: (c) => finishCells(s.finish, c),
+      labels: (c) => finishCells(s.finish, c).map((x) => x.label),
+    };
+  }
+
   function resultsTable() {
     const s = app.session;
     const nQ = settings().questionsPerContestant;
@@ -1492,20 +1605,20 @@
       const [sym, cls, title] = marks[res] || ['', '', ''];
       return el('td', { class: cls, text: sym, title });
     };
-    if (resultsKind === 'accel') {
-      // Earlier rounds as totals (their details are on their own results screens), round 3 per question.
-      const before = countedRounds(s, 'obstacle');
-      const acc = s.accel;
+    if (resultsKind === 'accel' || resultsKind === 'finish') {
+      // Earlier rounds as totals (their details are on their own results screens), this round per question.
+      const before = countedRounds(s, resultsKind).slice(0, -1);
+      const detail = roundDetail(s, resultsKind);
       const head = el('tr', {}, el('th', { text: 'Hạng' }), el('th', { text: 'Thí sinh' }),
         before.map((r) => el('th', { text: ROUND_NAME[r] })),
-        acc.scored.map((_, q) => el('th', { text: `TT câu ${q + 1}` })),
-        el('th', { text: 'Tăng tốc' }), el('th', { text: 'Tổng' }));
-      const accScores = roundScores(s, 'accel');
+        detail.short.map((h) => el('th', { text: h })),
+        el('th', { text: ROUND_NAME[resultsKind] }), el('th', { text: 'Tổng' }));
+      const own = roundScores(s, resultsKind);
       const body = finalRanking().map((r) =>
         el('tr', {}, el('td', { text: r.rank }), el('td', { text: r.name }),
           before.map((rd) => el('td', { text: roundScores(s, rd)[r.index] })),
-          accelCells(acc, r.index).map((x) => el('td', { class: x.cls, text: x.text, title: x.title })),
-          el('td', { text: accScores[r.index] }),
+          detail.cells(r.index).map((x) => el('td', { class: x.cls, text: x.text, title: x.title })),
+          el('td', { text: own[r.index] }),
           el('td', { text: r.score, style: 'font-weight:800' }))
       );
       return el('table', { class: 'rs-table' }, el('thead', {}, head), el('tbody', {}, body));
@@ -1535,37 +1648,19 @@
 
   function exportResultsCsv() {
     const s = app.session;
-    const nQ = settings().questionsPerContestant;
-    const label = { correct: 'Đúng', wrong: 'Sai', skipped: 'Bỏ qua' };
-    const warmHeads = Array.from({ length: nQ }, (_, j) => `Câu ${j + 1}`);
     let rows;
-    if (resultsKind === 'accel') {
-      const counted = countedRounds(s, 'accel');
-      const ob = s.obstacle;
-      const acc = s.accel;
-      rows = [['Hạng', 'Thí sinh', 'Tổng', ...counted.map((r) => ROUND_NAME[r]), ...warmHeads,
-        ...(ob ? [...SLOT_HEADS, 'Từ khóa'] : []), ...acc.scored.map((_, q) => `Tăng tốc câu ${q + 1}`)]];
-      for (const r of finalRanking()) {
-        const obCells = ob
-          ? [...obstacleMarks(ob, r.index).map((x) => label[x] || ''),
-            ob.winner === r.index ? `Đúng (+${ob.keywordPoints})` : ob.eliminated[r.index] ? 'Sai' : '']
-          : [];
-        rows.push([r.rank, r.name, r.score, ...counted.map((rd) => roundScores(s, rd)[r.index]),
-          ...s.results[r.index].map((x) => label[x] || ''), ...obCells, ...accelCells(acc, r.index).map((x) => x.label)]);
-      }
-    } else if (resultsKind === 'obstacle') {
-      const warm = E.scores(s, app.quiz);
-      const obScores = O.scores(s.obstacle, app.quiz);
-      const ob = s.obstacle;
-      rows = [['Hạng', 'Thí sinh', 'Tổng', 'Khởi động', 'Vượt chướng ngại vật', ...warmHeads, ...SLOT_HEADS, 'Từ khóa']];
-      for (const r of finalRanking()) {
-        const kw = ob.winner === r.index ? `Đúng (+${ob.keywordPoints})` : ob.eliminated[r.index] ? 'Sai' : '';
-        rows.push([r.rank, r.name, r.score, warm[r.index], obScores[r.index],
-          ...s.results[r.index].map((x) => label[x] || ''), ...obstacleMarks(ob, r.index).map((x) => label[x] || ''), kw]);
-      }
+    if (resultsKind === 'warmup') {
+      const warm = roundDetail(s, 'warmup');
+      rows = [['Hạng', 'Thí sinh', 'Điểm', ...warm.heads]];
+      for (const r of finalRanking()) rows.push([r.rank, r.name, r.score, ...warm.labels(r.index)]);
     } else {
-      rows = [['Hạng', 'Thí sinh', 'Điểm', ...warmHeads]];
-      for (const r of finalRanking()) rows.push([r.rank, r.name, r.score, ...s.results[r.index].map((x) => label[x] || '')]);
+      // Total, each round's points, then every round's details.
+      const counted = countedRounds(s, resultsKind);
+      const details = counted.map((rd) => roundDetail(s, rd));
+      rows = [['Hạng', 'Thí sinh', 'Tổng', ...counted.map((rd) => ROUND_NAME[rd]), ...details.flatMap((d) => d.heads)]];
+      for (const r of finalRanking()) {
+        rows.push([r.rank, r.name, r.score, ...counted.map((rd) => roundScores(s, rd)[r.index]), ...details.flatMap((d) => d.labels(r.index))]);
+      }
     }
     const date = new Date().toISOString().slice(0, 10);
     const suffix = hasNextRound() ? `-vong-${ROUND_NUM[resultsKind]}` : '';
@@ -1574,7 +1669,8 @@
 
   function resultsBack() {
     const s = app.session;
-    if (resultsKind === 'accel') commit({ ...s, accel: A.back(s.accel) });
+    if (resultsKind === 'finish') commit({ ...s, finish: F.back(s.finish) });
+    else if (resultsKind === 'accel') commit({ ...s, accel: A.back(s.accel) });
     else if (resultsKind === 'obstacle') commit({ ...s, round: 'obstacle', obstacle: O.back(s.obstacle) });
     else commit({ ...E.back(s, app.quiz), round: 'warmup' });
   }
@@ -1641,6 +1737,10 @@
       if (AC.handleKey(e)) e.preventDefault();
       return;
     }
+    if (app.screen === 'finish') {
+      if (FI.handleKey(e)) e.preventDefault();
+      return;
+    }
     if (e.ctrlKey || e.metaKey) {
       if (e.code === 'KeyZ' && app.screen === 'present') {
         e.preventDefault();
@@ -1672,7 +1772,7 @@
   // During the show, a clicked button must not keep focus, or Space would press it again.
   document.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest('button');
-    if (b && ['present', 'results', 'obstacle', 'accel'].includes(app.screen)) b.blur();
+    if (b && ['present', 'results', 'obstacle', 'accel', 'finish'].includes(app.screen)) b.blur();
   });
 
   $('help-close').onclick = () => toggleHelp(false);
@@ -1688,10 +1788,11 @@
       refitTileNames();
       OB.onResize();
       AC.onResize();
+      FI.onResize();
     }, 120);
   });
   // Hidden tile rows are skipped, so this only touches the screen on show.
-  const refitTileNames = () => ['pr-tiles', 'ob-tiles', 'ac-tiles'].forEach((id) => fitTileNames($(id)));
+  const refitTileNames = () => ['pr-tiles', 'ob-tiles', 'ac-tiles', 'fi-tiles'].forEach((id) => fitTileNames($(id)));
   // Names were measured before the web font arrived on the first show.
   if (document.fonts) document.fonts.addEventListener('loadingdone', refitTileNames);
   document.addEventListener('visibilitychange', () => {
@@ -1743,6 +1844,36 @@
     fitNames,
     pickImage,
     mediaUrl,
+    edited,
+    commit,
+    showScreen,
+    previousRound,
+    backToPreviousResults,
+    persist: persistSession,
+    refreshEditor: () => setTab(edTab),
+    actions: {
+      mute: toggleMute,
+      fullscreen: () => toggleFullscreen(),
+      help: () => toggleHelp(),
+      exit: () => actions.exit(),
+    },
+  });
+
+  FI = window.FinishUI({
+    app,
+    $,
+    el,
+    toast,
+    setIcon,
+    updateMuteButtons,
+    buildTiles,
+    updateTiles,
+    totalScores,
+    scoreDeltas,
+    setFitText,
+    fitText,
+    fitNames,
+    imageCell,
     edited,
     commit,
     showScreen,

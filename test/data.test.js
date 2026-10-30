@@ -73,8 +73,10 @@ test('xlsx round trip: template export → import gives the same quiz, including
     title: 'Lớp 7A', seconds: 45, points: 20, questionsPerContestant: 4,
     obstacleSeconds: 20, obstacleRowPoints: 15, keywordPoints: [80, 60, 50, 40, 30],
     accelSeconds: [15, 20, 30, 45], accelPoints: [50, 30, 20, 10],
+    finishSeconds: [10, 25], finishPoints: [25, 40], finishStealSeconds: 8,
   };
   quiz.obstacle.rows[3].boxes = 'Thuyền trưởng tàu';
+  quiz.finish.turns[1].slots[2].image = 'images/vi-du-dong-ho.svg';
   quiz.accel.questions[3].seconds = 60;
   quiz.accel.questions[0].media = 'videos/cau-1.mp4';
   const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
@@ -84,6 +86,7 @@ test('xlsx round trip: template export → import gives the same quiz, including
   assert.deepEqual(r.quiz.contestants, quiz.contestants);
   assert.deepEqual(r.quiz.obstacle, quiz.obstacle);
   assert.deepEqual(r.quiz.accel, quiz.accel);
+  assert.deepEqual(r.quiz.finish, quiz.finish);
 });
 
 test('workbook without a "Tăng tốc" sheet has no round 3', () => {
@@ -235,4 +238,59 @@ test('settings values are clamped to safe ranges', () => {
   quiz.settings.seconds = 9999;
   const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
   assert.equal(D.parseWorkbook(XLSX.read(buf, { type: 'array' })).quiz.settings.seconds, 300);
+});
+
+test('"Về đích" sheet: rows go to round 1 contestants by name, unknown names reported', () => {
+  const names = ['Nguyễn Văn An', 'Trần Thị Bình'];
+  const r = D.parseFinishRows([
+    ['THI SINH', 'Cau', 'Cau hoi 20', 'Dap an 20', 'Cau hoi 30', 'Dap an 30', 'Hinh anh'],
+    ['Trần Thị Bình', 2, 'b2 low', 'B2', 'b2 high', 'B2+', ''],
+    ['', 1, 'b1 low', 'B1', 'b1 high', 'B1+', 'images/x.png'],
+    ['nguyen van an', 1, 'a1 low', 'A1', 'a1 high', 'A1+', ''],
+    ['Lê Văn Cường', 1, 'x', 'x', 'x', 'x', ''],
+  ], names);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /Lê Văn Cường/);
+  assert.deepEqual(r.finish.turns.map((t) => t.slots.length), [1, 2]);
+  assert.equal(r.finish.turns[1].slots[0].versions[1].question, 'b1 high', 'sorted by "Câu"; blank name continues');
+  assert.equal(r.finish.turns[1].slots[0].image, 'images/x.png');
+  assert.equal(r.finish.turns[0].slots[0].versions[0].answer, 'A1', 'names match without accents');
+  assert.equal(D.parseFinishRows([[''], ['']], names).finish, null, 'empty sheet = no round 4');
+});
+
+test('round 4 needs 3 complete questions per contestant, and its errors block only round 4', () => {
+  const quiz = D.sampleQuiz();
+  quiz.finish.turns[0].slots.pop();
+  quiz.finish.turns[2].slots[1].versions[1].answer = '';
+  const errs = D.roundErrors(quiz, 'finish');
+  assert.equal(errs.length, 2, errs.join('\n'));
+  assert.ok(errs.some((e) => e.includes('2 câu')));
+  assert.ok(errs.some((e) => e.includes('câu 2 (30 điểm): chưa có đáp án')));
+  for (const round of ['warmup', 'obstacle', 'accel']) assert.deepEqual(D.roundErrors(quiz, round), []);
+  quiz.finish = null;
+  assert.equal(D.roundErrors(quiz, 'finish').length, 1, 'no round 4 at all');
+});
+
+test('normalizeQuiz: older quizzes get no round 4 and its default settings; turns follow the contestants', () => {
+  const old = D.normalizeQuiz({ id: 'x', settings: { title: 't' }, contestants: [] });
+  assert.equal(old.finish, null);
+  assert.deepEqual(old.settings.finishSeconds, [15, 20]);
+  assert.deepEqual(old.settings.finishPoints, [20, 30]);
+  assert.equal(old.settings.finishStealSeconds, 5);
+  const quiz = D.sampleQuiz();
+  quiz.contestants.push({ name: 'E', questions: [] });
+  quiz.finish.turns[0].slots.length = 1;
+  const q = D.normalizeQuiz(quiz);
+  assert.equal(q.finish.turns.length, 5, 'a turn for the new contestant');
+  assert.equal(q.finish.turns[4].slots.length, 3);
+  assert.equal(q.finish.turns[0].slots.length, 3, 'short turns padded to 3 questions');
+});
+
+test('workbook without a "Về đích" sheet has no round 4', () => {
+  const quiz = D.sampleQuiz();
+  quiz.finish = null;
+  const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
+  const r = D.parseWorkbook(XLSX.read(buf, { type: 'array' }));
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.quiz.finish, null);
 });
