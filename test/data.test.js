@@ -71,7 +71,7 @@ test('xlsx round trip: template export → import gives the same quiz, including
   const quiz = D.sampleQuiz();
   quiz.settings = {
     title: 'Lớp 7A', seconds: 45, points: 20, questionsPerContestant: 4,
-    obstacleSeconds: 20, obstacleRowPoints: 15, keywordPoints: [80, 60, 50, 40, 30, 10],
+    obstacleSeconds: 20, obstacleRowPoints: 15, keywordPoints: [80, 60, 50, 40, 30],
   };
   quiz.obstacle.rows[3].boxes = 'Thuyền trưởng tàu';
   const buf = XLSX.write(D.buildWorkbook(quiz), { type: 'array', bookType: 'xlsx' });
@@ -123,9 +123,10 @@ test('obstacle sheet: loose item names, unknown items and missing parts reported
   assert.equal(D.parseObstacleRows([['', ''], ['', '']]).obstacle, null, 'empty sheet = no round 2');
 });
 
-test('keyword points setting needs exactly 6 numbers', () => {
+test('keyword points setting needs exactly 5 numbers (an old 6th value is dropped)', () => {
   const errors = [];
-  assert.deepEqual(D.parseKeywordPoints('70; 60 ;50,40, 30 ,20', errors), [70, 60, 50, 40, 30, 20]);
+  assert.deepEqual(D.parseKeywordPoints('70; 60 ;50,40, 30', errors), [70, 60, 50, 40, 30]);
+  assert.deepEqual(D.parseKeywordPoints('80, 60, 50, 40, 30, 20', errors), [80, 60, 50, 40, 30]);
   assert.deepEqual(errors, []);
   assert.deepEqual(D.parseKeywordPoints('70, 60', errors), D.DEFAULT_SETTINGS.keywordPoints);
   assert.equal(errors.length, 1);
@@ -145,7 +146,9 @@ test('normalizeQuiz upgrades a quiz saved by the previous version', () => {
   const q = D.normalizeQuiz(old);
   assert.equal(q.obstacle, null);
   assert.equal(q.settings.obstacleSeconds, 15);
-  assert.deepEqual(q.settings.keywordPoints, [70, 60, 50, 40, 30, 20]);
+  assert.deepEqual(q.settings.keywordPoints, [70, 60, 50, 40, 30]);
+  const six = D.normalizeQuiz({ id: 'y', settings: { keywordPoints: [90, 60, 50, 40, 30, 20] }, contestants: [] });
+  assert.deepEqual(six.settings.keywordPoints, [90, 60, 50, 40, 30], 'saved quizzes with 6 values keep their first 5');
 });
 
 test('csv export has a BOM and survives a round trip', () => {

@@ -68,16 +68,32 @@ test('cancelling a question returns the row to the board untouched', () => {
   assert.equal(O.cancelRow(O.reveal(O.pickRow(st, 3))).phase, 'marking', 'no cancel once the answer is shown');
 });
 
-test('keyword value follows the schedule 70/60/50/40/30/20', () => {
+test('keyword value follows the schedule 70/60/50/40/30', () => {
   let st = board();
   const values = [O.keywordValue(st, quiz)];
   for (let i = 0; i < 4; i++) {
     st = play(st, i, i % 2 ? [] : [0]); // failed rows count as finished too
     values.push(O.keywordValue(st, quiz));
   }
-  st = play(st, O.CENTER, [1]);
-  values.push(O.keywordValue(st, quiz));
-  assert.deepEqual(values, [70, 60, 50, 40, 30, 20]);
+  assert.deepEqual(values, [70, 60, 50, 40, 30]);
+  st = O.reveal(O.pickRow(st, O.CENTER));
+  assert.equal(O.keywordValue(st, quiz), 30, 'a guess during the center question is the last chance');
+});
+
+test('once the center question is scored nobody can buzz; only opening the keyword is left', () => {
+  let st = board();
+  for (let i = 0; i < 4; i++) st = play(st, i, []);
+  assert.ok(!O.allPlayed(st));
+  assert.ok(O.canBuzz(O.pickRow(st, O.CENTER), 0), 'bells still work during the center question');
+  st = play(st, O.CENTER, []);
+  assert.ok(O.allPlayed(st));
+  for (let c = 0; c < 4; c++) assert.ok(!O.canBuzz(st, c));
+  assert.equal(O.buzzCorrect(st, quiz, 0), st);
+  assert.equal(O.buzzWrong(st, 0), st);
+  const opened = O.revealKeyword(st);
+  assert.deepEqual([opened.phase, opened.winner, opened.keywordPoints], ['final', null, 0]);
+  const back = O.undo(st).state; // un-score the center question → bells work again
+  assert.ok(O.canBuzz(back, 0));
 });
 
 test('a row still in progress does not count toward the keyword value', () => {

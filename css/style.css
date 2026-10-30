@@ -815,7 +815,7 @@ kbd {
 .ob-ed-empty h3 { margin: 0 0 8px; }
 .ob-ed-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; padding: 18px 20px; }
 .ob-ed-settings .field-wide { grid-column: 1 / -1; }
-.kp-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.kp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .kp { display: grid; gap: 4px; font-size: 0.8rem; color: var(--muted); }
 .ob-ed-remove { grid-column: 1 / -1; justify-content: flex-end; }
 .ob-ed-keyword { display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 18px 20px; align-items: start; }
@@ -931,7 +931,7 @@ kbd {
   gap: 2.4vw;
   padding: 1vh 2.4vw 0.6vh;
 }
-.ob-left { --bx: 5.5vh; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 1.2vh; }
+.ob-left { --bx: 5.5vh; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 1.2vh; }
 .ob-left-body { position: relative; min-height: 0; }
 
 .mode-badge {

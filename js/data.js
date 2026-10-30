@@ -4,7 +4,7 @@
  *
  * Quiz shape:
  *   { id, settings: { title, seconds, points, questionsPerContestant,
- *                     obstacleSeconds, obstacleRowPoints, keywordPoints[6] },
+ *                     obstacleSeconds, obstacleRowPoints, keywordPoints[5] },
  *     contestants: [ { name, questions: [ { question, answer, image } ] } ],
  *     obstacle: null | { keyword, image, rows: [4 × { question, answer, boxes }],
  *                        center: { question, answer, boxes } } }
@@ -25,8 +25,9 @@
   };
 
   const OBSTACLE_ROWS = 4;
-  // Keyword value by how far the round has gone: before row 1, after 1–4 rows, after the center question.
-  const KEYWORD_STAGES = ['Trước hàng 1', 'Sau 1 hàng', 'Sau 2 hàng', 'Sau 3 hàng', 'Sau 4 hàng', 'Sau câu trung tâm'];
+  // Keyword value by how far the round has gone: before row 1, after 1–4 rows. Once the center
+  // question is scored nobody can guess any more; the teacher just opens the keyword.
+  const KEYWORD_STAGES = ['Trước hàng 1', 'Sau 1 hàng', 'Sau 2 hàng', 'Sau 3 hàng', 'Sau 4 hàng'];
 
   const DEFAULT_SETTINGS = {
     title: 'Thử thách tri thức',
@@ -35,7 +36,7 @@
     questionsPerContestant: 4,
     obstacleSeconds: 15,
     obstacleRowPoints: 10,
-    keywordPoints: [70, 60, 50, 40, 30, 20],
+    keywordPoints: [70, 60, 50, 40, 30],
   };
 
   const HEADERS = ['Thí sinh', 'Câu', 'Câu hỏi', 'Đáp án', 'Hình ảnh (tùy chọn)'];
@@ -201,9 +202,11 @@
 
   function parseKeywordPoints(value, errors) {
     if (Array.isArray(value)) value = value.join(',');
-    const nums = String(value).split(/[^\d]+/).filter(Boolean).map(Number);
+    let nums = String(value).split(/[^\d]+/).filter(Boolean).map(Number);
+    // Older files had a 6th value ("after the center question"); it no longer applies.
+    if (nums.length === KEYWORD_STAGES.length + 1) nums = nums.slice(0, KEYWORD_STAGES.length);
     if (nums.length !== KEYWORD_STAGES.length) {
-      errors.push(`"${SETTINGS_LABELS.keywordPoints}" cần đúng ${KEYWORD_STAGES.length} số, ví dụ "70, 60, 50, 40, 30, 20".`);
+      errors.push(`"${SETTINGS_LABELS.keywordPoints}" cần đúng ${KEYWORD_STAGES.length} số, ví dụ "70, 60, 50, 40, 30".`);
       return DEFAULT_SETTINGS.keywordPoints.slice();
     }
     return nums.map((n) => Math.min(LIMITS.keywordPoint[1], Math.max(LIMITS.keywordPoint[0], n)));
@@ -213,6 +216,9 @@
   function normalizeQuiz(quiz) {
     if (!quiz) return quiz;
     const st = { ...DEFAULT_SETTINGS, ...quiz.settings };
+    if (Array.isArray(st.keywordPoints) && st.keywordPoints.length === KEYWORD_STAGES.length + 1) {
+      st.keywordPoints = st.keywordPoints.slice(0, KEYWORD_STAGES.length); // drop the old "after the center question" value
+    }
     if (!Array.isArray(st.keywordPoints) || st.keywordPoints.length !== KEYWORD_STAGES.length) {
       st.keywordPoints = DEFAULT_SETTINGS.keywordPoints.slice();
     }

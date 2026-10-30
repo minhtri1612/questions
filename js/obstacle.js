@@ -60,9 +60,13 @@
     return st.rows.slice(0, ROWS).every(isDone);
   }
 
-  /** 0–4 = rows finished so far, 5 = center question finished. Indexes keywordPoints. */
+  /** Every question has been played: nothing left but opening the keyword. */
+  function allPlayed(st) {
+    return isDone(st.rows[CENTER]);
+  }
+
+  /** 0–4 = rows finished so far. Indexes keywordPoints (the center question is the last chance at stage 4). */
   function stage(st) {
-    if (isDone(st.rows[CENTER])) return 5;
     return st.rows.slice(0, ROWS).filter(isDone).length;
   }
 
@@ -137,8 +141,11 @@
     return n;
   }
 
+  /** Bells close once the center question is scored; after that the teacher opens the keyword. */
   function canBuzz(st, c) {
-    return PLAYING.includes(st.phase) && st.winner == null && c >= 0 && c < st.eliminated.length && !st.eliminated[c];
+    return (
+      PLAYING.includes(st.phase) && st.winner == null && !allPlayed(st) && c >= 0 && c < st.eliminated.length && !st.eliminated[c]
+    );
   }
 
   function snapshot(st) {
@@ -239,6 +246,7 @@
     createState,
     isCompatible,
     centerUnlocked,
+    allPlayed,
     stage,
     keywordValue,
     canPick,

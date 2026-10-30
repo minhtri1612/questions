@@ -166,7 +166,11 @@
         const b = tile.querySelector('.tile-buzz');
         tile.classList.toggle('no-buzz', s.eliminated[c]);
         b.disabled = !O.canBuzz(s, c);
-        b.title = s.eliminated[c] ? 'Đã mất quyền trả lời chướng ngại vật' : `Bấm chuông trả lời chướng ngại vật (Shift+${c + 1})`;
+        b.title = s.eliminated[c]
+          ? 'Đã mất quyền trả lời chướng ngại vật'
+          : O.allPlayed(s)
+            ? 'Đã hết câu hỏi — không bấm chuông được nữa'
+            : `Bấm chuông trả lời chướng ngại vật (Shift+${c + 1})`;
       });
       $('ob-intro').hidden = s.phase !== 'intro';
       renderMode();
@@ -192,9 +196,9 @@
       } else if (s.phase === 'board') {
         cls = 'mode-board';
         name = 'Chọn hàng ngang';
-        if (s.rows[O.CENTER].status !== 'closed') {
+        if (O.allPlayed(s)) {
           name = 'Hết câu hỏi';
-          hint = 'Chờ thí sinh bấm chuông · K: mở chướng ngại vật';
+          hint = 'Space hoặc K: mở chướng ngại vật';
         } else if (O.centerUnlocked(s)) hint = 'Phím 5: câu hỏi trung tâm';
         else hint = 'Phím 1–4 chọn hàng ngang';
       } else if (s.phase === 'question') {
@@ -373,6 +377,8 @@
       vis('reveal', s.phase === 'question');
       vis('confirm', s.phase === 'marking');
       vis('keyword', PLAYING.includes(s.phase));
+      // Once every question is played, opening the keyword is the only thing left to do.
+      document.querySelector('#screen-obstacle [data-ob="keyword"]').classList.toggle('btn-next', s.phase === 'board' && O.allPlayed(s));
       vis('finish', s.phase === 'final');
       vis('undo', true, !s.history.length || s.phase === 'intro');
       vis('pause', true, s.phase !== 'question');
@@ -485,6 +491,7 @@
       if (confirming) return;
       if (!O.canBuzz(s, c)) {
         if (s.eliminated[c]) toast(`${ct.name} đã mất quyền trả lời chướng ngại vật.`);
+        else if (O.allPlayed(s) && PLAYING.includes(s.phase)) toast('Đã hết câu hỏi — nhấn Space hoặc K để mở chướng ngại vật.');
         else if (s.phase === 'intro') toast('Hãy bắt đầu vòng thi trước (Space).');
         return;
       }
@@ -607,6 +614,7 @@
       advance() {
         const s = st();
         if (s.phase === 'intro') commit(O.start(s));
+        else if (s.phase === 'board' && O.allPlayed(s)) openKeyword();
         else if (s.phase === 'board') toast(O.centerUnlocked(s) && s.rows[O.CENTER].status === 'closed' ? 'Nhấn 5 để chơi câu hỏi trung tâm.' : 'Chọn hàng ngang bằng phím 1–4 hoặc bấm vào hàng.');
         else if (s.phase === 'question') {
           S.flip();

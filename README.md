@@ -7,8 +7,9 @@ An Olympia-style quiz for the projector, in two rounds. The interface is in Viet
 - **Vòng 2 · Vượt chướng ngại vật (Obstacle):** a hidden keyword and a picture
   covered by 5 pieces. Everyone answers each row on paper; each correct contestant
   gets +10 and a solved row opens its corner. Contestants can buzz to guess the
-  keyword at any time (70 → 20 points the later it gets). A wrong guess only removes
-  the right to guess again. Scores carry over from round 1.
+  keyword at any time until the center question is scored (70 → 30 points the later
+  it gets). After that nobody can guess; the teacher just opens the keyword. A wrong
+  guess only removes the right to guess again. Scores carry over from round 1.
 
 Round 2 is optional. Without it the app works exactly like a single Warm-up round.
 
@@ -44,8 +45,9 @@ python -m http.server 8000      # then open http://localhost:8000
    ("Ánh sáng" → `ANH SANG`). Use *Ô chữ* to show different letters than the
    written answer, e.g. answer "Hà Nội (thủ đô)", boxes "Hà Nội".
    Settings for round 2 (in **Cài đặt**): *Số giây mỗi hàng ngang* (15),
-   *Điểm mỗi hàng ngang* (10), *Điểm từ khóa* (`70, 60, 50, 40, 30, 20`: before
-   row 1, after 1, 2, 3, 4 rows, after the center question).
+   *Điểm mỗi hàng ngang* (10), *Điểm từ khóa* (`70, 60, 50, 40, 30`: before
+   row 1, after 1, 2, 3, 4 rows; a guess during the center question is worth the
+   last value). Older files with a 6th value still load; the 6th is ignored.
 
 CSV works too (UTF-8 or Excel's default Vietnamese encoding, comma or semicolon),
 but holds only the Warm-up questions. Add round 2 and settings in the editor
@@ -79,10 +81,10 @@ current mode (cyan **Chọn hàng ngang** = choosing a row, gold **Chấm điể
 | `1`–`4`, `5` | *Choosing:* play row 1–4 / the center question |
 | `1`–`6` | *Ticking:* mark a contestant correct (press again to unmark) |
 | `Enter` | Confirm the ticks: +points, opens the corner if anyone was right |
-| `Space` `→` | Start round / reveal answer / go to the final results |
+| `Space` `→` | Start round / reveal answer / open the keyword once every question is played / go to the final results |
 | `←` | Back to the board (before the answer is shown) |
 | `Shift`+`1`–`6` or the bell on a name | Contestant buzzes for the keyword → `C` correct / `X` wrong / `←` cancel |
-| `K` | Open the keyword (nobody solved it, no keyword points) |
+| `K` | Open the keyword (nobody solved it, no keyword points; asks first if questions are left) |
 | `U` or `Ctrl+Z` | Undo the last action (scored row, wrong guess, keyword) |
 | `T` / `R` | Pause-resume / reset the row timer (it also pauses during a buzz) |
 
