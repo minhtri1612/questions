@@ -1,0 +1,9 @@
+.git
+.dockerignore
+.gitignore
+Dockerfile
+compose.yaml
+README.md
+mau-cau-hoi.xlsx
+test
+videos

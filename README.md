@@ -39,6 +39,17 @@ server needed. If your browser blocks local files, run a simple server instead:
 python -m http.server 8000      # then open http://localhost:8000
 ```
 
+Or run it with Docker:
+
+```
+docker compose up -d --build    # then open http://localhost:8080
+```
+
+Put question videos and images in `videos/` and refer to them as `videos/cau-1.mp4`;
+that folder is read live, so adding a file needs no rebuild. Questions and progress
+stay in the browser, not the container: each address (`file://`, `localhost:8080`, …)
+has its own saved quiz, so export to Excel first when you switch.
+
 ## Prepare questions
 
 1. Open `mau-cau-hoi.xlsx` (or download the template from the home screen).
@@ -124,7 +135,7 @@ current mode (cyan **Chọn hàng ngang** = choosing a row, gold **Chấm điể
 
 | Key | Action |
 | --- | --- |
-| `1`–`4`, `5` | *Choosing:* play row 1–4 / the center question |
+| `1`–`4`, `5` or click a row or picture piece | *Choosing:* play row 1–4 / the center question |
 | `1`–`6` | *Ticking:* mark a contestant correct (press again to unmark) |
 | `Enter` | Confirm the ticks: +points, opens the corner if anyone was right |
 | `Space` `→` | Start round / reveal answer / open the keyword once every question is played / go to the final results |

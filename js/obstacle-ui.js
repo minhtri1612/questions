@@ -325,6 +325,7 @@
         if (!first && open && !wasOpen && !enteringFinal) S.open();
         p.classList.toggle('open', open);
         p.classList.toggle('failed', failed && !open);
+        p.classList.toggle('pickable', O.canPick(s, i));
         p.querySelector('span').textContent = failed ? '✗' : i < O.ROWS ? i + 1 : '★';
       });
       if (first) {
@@ -947,6 +948,9 @@
           actions[b.dataset.ob]();
         })
       );
+      document.querySelectorAll('#ob-image .ob-piece').forEach((p) => {
+        p.onclick = () => pick(+p.dataset.piece);
+      });
       $('buzz-correct').onclick = buzzCorrect;
       $('buzz-wrong').onclick = buzzWrong;
       $('buzz-cancel').onclick = () => {

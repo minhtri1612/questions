@@ -1,0 +1,9 @@
+services:
+  quiz:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      # Question videos and images: a cell "videos/cau-1.mp4" reads ./videos/cau-1.mp4.
+      - ./videos:/usr/share/nginx/html/videos:ro
+    restart: unless-stopped

@@ -1108,6 +1108,10 @@ kbd {
 .ob-piece.center.open { transform: scale(0.2) rotate(25deg); opacity: 0; }
 .ob-piece.failed { background: repeating-linear-gradient(45deg, #3d1532 0 2vh, #2a0f25 2vh 4vh); color: #ff6b8f; }
 .ob-piece.center.failed { background: repeating-linear-gradient(45deg, #5a1030 0 2vh, #3d0a22 2vh 4vh); }
+.ob-piece.open { pointer-events: none; }
+.obstacle.mode-is-board .ob-piece.pickable { cursor: pointer; }
+.obstacle.mode-is-board .ob-piece.pickable:hover { border-color: var(--cyan); box-shadow: inset 0 0 3vh rgba(58, 209, 255, 0.5); }
+.obstacle.mode-is-board .ob-piece.center.pickable:hover { border-color: var(--gold); box-shadow: 0 0 3vh rgba(255, 201, 74, 0.7); }
 .ob-image.instant .ob-piece { transition: none !important; }
 
 .ob-keyword { width: 100%; display: grid; justify-items: center; gap: 1vh; }
